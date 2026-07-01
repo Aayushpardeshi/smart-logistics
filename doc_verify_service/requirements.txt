@@ -1,0 +1,31 @@
+# Web Framework
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+
+# Data validation
+pydantic==2.7.1
+pydantic-settings==2.3.0
+
+# File handling
+python-multipart==0.0.9
+python-dotenv==1.0.1
+
+# HTTP client
+httpx==0.27.0
+
+# Logging
+loguru==0.7.2
+
+# PDF handling
+pdfplumber==0.11.0
+
+# Image handling
+pillow==10.4.0
+
+# OCR
+pytesseract==0.3.13
+easyocr==1.7.1
+
+# AI
+torch==2.3.1
+transformers==4.41.2
