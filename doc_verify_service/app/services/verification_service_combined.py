@@ -89,6 +89,3 @@ def verify_combined_document(
             raw_text_back=None,
             error=str(e),
         )
-
-    # hey ayush how are u 
-    

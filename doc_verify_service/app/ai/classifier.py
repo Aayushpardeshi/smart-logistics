@@ -5,20 +5,27 @@ from app.schemas.document import DocumentType
 DOCUMENT_KEYWORDS = {
     DocumentType.DRIVING_LICENCE: [
         "driving licence", "driving license", "dl no", "licence no",
-        "validity", "transport", "non-transport", "issue date",
-        "blood group", "organ donor", "motor vehicles act",
-        "rto", "regional transport", "maharashtra", "issued by government",
+        "validity", "issue date", "blood group", "organ donor",
+        "motor vehicles act", "rto", "regional transport",
+        "maharashtra", "issued by government", "valid till",
+        "doi", "mcwg", "lmv", "non-transport",
+    ],
+    DocumentType.AADHAAR: [
+        "aadhaar", "aadhar", "unique identification",
+        "government of india", "uidai", "year of birth",
+        "enrolment", "vid", "आधार", "भारत सरकार",
+        "male", "female", "father", "husband",
     ],
     DocumentType.INVOICE: [
         "invoice", "bill to", "ship to", "gst", "gstin",
-        "total amount", "tax invoice", "payment due", "item", "qty",
+        "total amount", "tax invoice", "payment due",
     ],
     DocumentType.INSURANCE: [
         "insurance", "policy number", "premium", "insured",
         "coverage", "claim", "nominee", "sum assured",
     ],
     DocumentType.ID_CARD: [
-        "aadhaar", "pan card", "voter id", "employee id",
+        "pan card", "voter id", "employee id",
         "identity card", "uid", "identification",
     ],
 }
@@ -27,7 +34,7 @@ DOCUMENT_KEYWORDS = {
 def classify_document(text: str) -> tuple[DocumentType, float]:
     """
     Classify document type using keyword matching.
-    No ML model required — fast and reliable for known doc types.
+    No ML model — fast and reliable for known Indian doc types.
     """
     if not text or len(text.strip()) < 10:
         logger.warning("Text too short for classification")

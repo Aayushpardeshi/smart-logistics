@@ -26,15 +26,16 @@ class Settings(BaseSettings):
     max_file_size_mb: int = Field(default=10)
     allowed_extensions: str = Field(default="pdf,jpg,jpeg,png")
 
+    # CORS
+    cors_origins: str = Field(default="http://localhost:3000,http://localhost:8080")
+
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
-
-    pythonmodel_config = {
-    "env_file": ".env",
-    "extra": "ignore",
-    "protected_namespaces": ("settings_",)
-}

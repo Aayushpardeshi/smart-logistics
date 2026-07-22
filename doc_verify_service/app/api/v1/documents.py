@@ -3,10 +3,13 @@ from loguru import logger
 from app.schemas.document import (
     VerificationResponse,
     LicenceBackResponse,
-    DocumentType,
+    CombinedLicenceResponse,
+    AadhaarCombinedResponse,
 )
 from app.services.verification_service import verify_document
 from app.services.verification_service_back import verify_back_document
+from app.services.verification_service_combined import verify_combined_document
+from app.services.verification_service_aadhaar_combined import verify_aadhaar_combined
 from app.dependencies import get_allowed_extensions, get_max_file_size
 
 router = APIRouter()
@@ -18,17 +21,19 @@ def validate_file(
     allowed_extensions: list[str],
     max_file_size: int,
 ) -> None:
-    """Reusable file validation."""
+    """Reusable file validation for all endpoints."""
     ext = file.filename.split(".")[-1].lower()
     if ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"File type '{ext}' not allowed. Allowed: {allowed_extensions}",
+            detail=f"File type '{ext}' not allowed. "
+                   f"Allowed: {allowed_extensions}",
         )
     if len(file_bytes) > max_file_size:
         raise HTTPException(
             status_code=400,
-            detail=f"File too large. Max: {max_file_size // (1024 * 1024)}MB",
+            detail=f"File too large. "
+                   f"Max: {max_file_size // (1024 * 1024)}MB",
         )
 
 
@@ -44,8 +49,7 @@ async def verify_document_endpoint(
     """
     file_bytes = await file.read()
     validate_file(file, file_bytes, allowed_extensions, max_file_size)
-
-    logger.info(f"Front side received: {file.filename} | {len(file_bytes)} bytes")
+    logger.info(f"Front received: {file.filename} | {len(file_bytes)} bytes")
     return verify_document(file_bytes, file.filename)
 
 
@@ -61,6 +65,63 @@ async def verify_back_document_endpoint(
     """
     file_bytes = await file.read()
     validate_file(file, file_bytes, allowed_extensions, max_file_size)
-
-    logger.info(f"Back side received: {file.filename} | {len(file_bytes)} bytes")
+    logger.info(f"Back received: {file.filename} | {len(file_bytes)} bytes")
     return verify_back_document(file_bytes, file.filename)
+
+
+@router.post("/verify-combined", response_model=CombinedLicenceResponse)
+async def verify_combined_endpoint(
+    front_file: UploadFile = File(...),
+    back_file: UploadFile = File(...),
+    allowed_extensions: list[str] = Depends(get_allowed_extensions),
+    max_file_size: int = Depends(get_max_file_size),
+):
+    """
+    Front + back of driving licence in one request.
+    Returns unified JSON — Spring Boot calls this.
+    """
+    front_bytes = await front_file.read()
+    back_bytes = await back_file.read()
+    validate_file(front_file, front_bytes, allowed_extensions, max_file_size)
+    validate_file(back_file, back_bytes, allowed_extensions, max_file_size)
+    logger.info(
+        f"Combined received | "
+        f"front={front_file.filename} | back={back_file.filename}"
+    )
+    return verify_combined_document(
+        front_bytes=front_bytes,
+        front_filename=front_file.filename,
+        back_bytes=back_bytes,
+        back_filename=back_file.filename,
+    )
+
+
+@router.post("/verify-aadhaar", response_model=AadhaarCombinedResponse)
+async def verify_aadhaar_endpoint(
+    front_file: UploadFile = File(...),
+    back_file: UploadFile = File(...),
+    allowed_extensions: list[str] = Depends(get_allowed_extensions),
+    max_file_size: int = Depends(get_max_file_size),
+):
+    """
+    Front + back of Aadhaar card in one request.
+    Extracts name, DOB, gender, Aadhaar number, address, pincode.
+    Spring Boot calls this for Aadhaar verification.
+    """
+    front_bytes = await front_file.read()
+    back_bytes = await back_file.read()
+
+    validate_file(front_file, front_bytes, allowed_extensions, max_file_size)
+    validate_file(back_file, back_bytes, allowed_extensions, max_file_size)
+
+    logger.info(
+        f"Aadhaar received | "
+        f"front={front_file.filename} | back={back_file.filename}"
+    )
+
+    return verify_aadhaar_combined(
+        front_bytes=front_bytes,
+        front_filename=front_file.filename,
+        back_bytes=back_bytes,
+        back_filename=back_file.filename,
+    )

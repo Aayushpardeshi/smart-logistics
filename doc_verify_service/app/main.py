@@ -1,8 +1,10 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.api.v1.documents import router as documents_router
 from loguru import logger
+from app.core.error_handlers import register_error_handlers
 
 settings = get_settings()
 
@@ -20,6 +22,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+register_error_handlers(app)
+
 app.include_router(
     documents_router,
     prefix="/api/v1/documents",
@@ -33,4 +45,4 @@ async def health_check():
         "status": "ok",
         "app": settings.app_name,
         "env": settings.app_env,
-    }                           
+    }
