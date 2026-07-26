@@ -28,6 +28,19 @@ const shipmentSchema = new mongoose.Schema(
     },
 
     priceOffered: { type: Number },
+
+    liveTracking: {
+      isActive: { type: Boolean, default: false },
+      startedAt: { type: Date, default: null },
+      endedAt: { type: Date, default: null },
+      lastLocation: {
+        lat: { type: Number, default: null },
+        lng: { type: Number, default: null },
+        speed: { type: Number, default: null },
+        heading: { type: Number, default: null },
+        updatedAt: { type: Date, default: null },
+      },
+    },
   },
   { timestamps: true }
 );

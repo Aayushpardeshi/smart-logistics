@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Driver - Live Tracking Test</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+  <h2>Driver Test Client</h2>
+
+  <label>JWT Token:</label><br>
+  <textarea id="token" rows="3" style="width:400px"></textarea><br><br>
+
+  <label>Shipment ID:</label><br>
+  <input id="shipmentId" type="text" style="width:400px"><br><br>
+
+  <button onclick="connectSocket()">Connect</button>
+  <button onclick="startTrip()">Start Trip</button>
+
+  <p id="status">Not connected</p>
+  <pre id="log" style="background:#111;color:#0f0;padding:10px;height:300px;overflow-y:scroll;"></pre>
+
+  <script>
+    let socket = null;
+    let watchId = null;
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function connectSocket() {
+      const token = document.getElementById('token').value.trim();
+      if (!token) return alert('Paste JWT token first');
+
+      socket = io('http://localhost:5000', {
+        auth: { token }
+      });
+
+      socket.on('connect', () => {
+        document.getElementById('status').textContent = 'Connected: ' + socket.id;
+        log('Socket connected');
+      });
+
+      socket.on('connect_error', (err) => {
+        log('Connection error: ' + err.message);
+      });
+
+      socket.on('trip:started', (data) => {
+        log('Trip started: ' + JSON.stringify(data));
+        beginWatchingLocation(data.shipmentId);
+      });
+
+      socket.on('error:tracking', (data) => {
+        log('ERROR: ' + data.message);
+      });
+
+      socket.on('trip:ended', (data) => {
+        log('Trip ended: ' + JSON.stringify(data));
+        stopWatchingLocation();
+      });
+
+      socket.on('disconnect', () => {
+        log('Socket disconnected');
+        stopWatchingLocation();
+      });
+    }
+
+    function startTrip() {
+      const shipmentId = document.getElementById('shipmentId').value.trim();
+      if (!socket || !socket.connected) return alert('Connect socket first');
+      if (!shipmentId) return alert('Enter shipment ID');
+
+      socket.emit('driver:start_trip', { shipmentId });
+      log('Emitted start_trip for ' + shipmentId);
+    }
+
+    function beginWatchingLocation(shipmentId) {
+      if (!navigator.geolocation) {
+        log('Geolocation not supported by browser');
+        return;
+      }
+
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude, speed, heading, accuracy } = pos.coords;
+
+          socket.emit('driver:location_update', {
+            shipmentId,
+            lat: latitude,
+            lng: longitude,
+            speed: speed ?? null,
+            heading: heading ?? null,
+            accuracy: accuracy ?? null
+          });
+
+          log(`Location sent: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        },
+        (err) => {
+          log('Geolocation error: ' + err.message);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000
+        }
+      );
+
+      log('Started watching GPS position (auto, no manual updates needed)');
+    }
+
+    function stopWatchingLocation() {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        log('Stopped watching GPS position');
+      }
+    }
+  </script>
+</body>
+</html>

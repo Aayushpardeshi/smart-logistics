@@ -11,6 +11,8 @@ const logger = require("./utils/logger");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
 const driverRoutes = require("./routes/driverRoutes");
 const businessRoutes = require("./routes/businessRoutes");
+const http = require('http');
+const initSocketServer = require('./sockets/index');
 const app = express();
 
 connectDB();
@@ -32,4 +34,8 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`));
+
+const server = http.createServer(app);
+initSocketServer(server);
+
+server.listen(PORT, () => logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`));

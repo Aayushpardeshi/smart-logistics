@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Business - Live Tracking Test</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #map { height: 400px; width: 600px; }
+  </style>
+</head>
+<body>
+  <h2>Business - Live Tracking Test</h2>
+
+  <label>JWT Token:</label><br>
+  <textarea id="token" rows="3" style="width:400px"></textarea><br><br>
+
+  <label>Shipment ID:</label><br>
+  <input id="shipmentId" type="text" style="width:400px"><br><br>
+
+  <button onclick="connectSocket()">Connect</button>
+  <button onclick="joinRoom()">Join Tracking Room</button>
+  <button onclick="confirmDelivery()">Confirm Delivery (End Trip)</button>
+
+  <p id="status">Not connected</p>
+  <div id="map"></div>
+  <pre id="log" style="background:#111;color:#0f0;padding:10px;height:200px;overflow-y:scroll;"></pre>
+
+  <script>
+    let socket = null;
+    let map = null;
+    let marker = null;
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function initMap(lat, lng) {
+      if (map) return; // init once
+      map = L.map('map').setView([lat || 20.5937, lng || 78.9629], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      marker = L.marker([lat || 20.5937, lng || 78.9629]).addTo(map);
+    }
+
+    function updateMarker(lat, lng) {
+      if (!map) initMap(lat, lng);
+      marker.setLatLng([lat, lng]);
+      map.panTo([lat, lng]);
+    }
+
+    function connectSocket() {
+      const token = document.getElementById('token').value.trim();
+      if (!token) return alert('Paste JWT token first');
+
+      socket = io('http://localhost:5000', {
+        auth: { token }
+      });
+
+      socket.on('connect', () => {
+        document.getElementById('status').textContent = 'Connected: ' + socket.id;
+        log('Socket connected');
+      });
+
+      socket.on('connect_error', (err) => {
+        log('Connection error: ' + err.message);
+      });
+
+      socket.on('room:joined', (data) => {
+        log('Room joined: ' + JSON.stringify(data));
+        const last = data.lastLocation;
+        if (last && last.lat) {
+          initMap(last.lat, last.lng);
+          updateMarker(last.lat, last.lng);
+        } else {
+          initMap();
+        }
+      });
+
+      socket.on('location:update', (data) => {
+        log(`Location update: ${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}`);
+        updateMarker(data.lat, data.lng);
+      });
+
+      socket.on('trip:ended', (data) => {
+        log('Trip ended: ' + JSON.stringify(data));
+        alert('Delivery confirmed — tracking ended');
+      });
+
+      socket.on('error:tracking', (data) => {
+        log('ERROR: ' + data.message);
+      });
+
+      socket.on('disconnect', () => {
+        log('Socket disconnected');
+      });
+    }
+
+    function joinRoom() {
+      const shipmentId = document.getElementById('shipmentId').value.trim();
+      if (!socket || !socket.connected) return alert('Connect socket first');
+      if (!shipmentId) return alert('Enter shipment ID');
+
+      socket.emit('business:join_shipment_room', { shipmentId });
+      log('Emitted join_shipment_room for ' + shipmentId);
+    }
+
+    function confirmDelivery() {
+      const shipmentId = document.getElementById('shipmentId').value.trim();
+      if (!socket || !socket.connected) return alert('Connect socket first');
+      if (!shipmentId) return alert('Enter shipment ID');
+
+      if (!confirm('Confirm delivery received? This will end tracking.')) return;
+
+      socket.emit('business:confirm_delivery', { shipmentId });
+      log('Emitted confirm_delivery for ' + shipmentId);
+    }
+  </script>
+</body>
+</html>
