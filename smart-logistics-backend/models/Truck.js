@@ -8,8 +8,12 @@ const truckSchema = new mongoose.Schema(
     capacityTons: { type: Number, required: true },
     imageUrls: [{ type: String }],
     rcDocUrl: { type: String },
+    pucDocUrl: { type: String },
     isActive: { type: Boolean, default: true },
-    verificationStatus: { type: String, enum: ["pending", "verified", "rejected"], default: "pending" },
+    rcStatus: { type: String, enum: ["pending", "verified", "rejected"], default: "pending" },
+    pucStatus: { type: String, enum: ["pending", "verified", "rejected"], default: "pending" },
+    rcDetails: { type: Object },
+    pucDetails: { type: Object },
     currentLocation: {
       lat: { type: Number },
       lng: { type: Number },

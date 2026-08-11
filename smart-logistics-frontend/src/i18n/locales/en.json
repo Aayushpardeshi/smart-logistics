@@ -1,0 +1,18 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "loads": "Loads",
+    "bids": "Bids",
+    "trips": "Trips",
+    "profile": "Profile",
+    "vehicles": "Vehicles",
+    "documents": "Documents"
+  },
+  "common": {
+    "logout": "Logout",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "language": "Language"
+  }
+}

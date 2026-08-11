@@ -28,6 +28,22 @@ DOCUMENT_KEYWORDS = {
         "pan card", "voter id", "employee id",
         "identity card", "uid", "identification",
     ],
+    DocumentType.RC: [
+        "registration certificate", "certificate of registration",
+        "chassis no", "engine no", "rc no", "registering authority",
+        "vahan", "class of vehicle", "maker", "fuel used",
+        "owner name", "hypothecation", "financer",
+    ],
+    DocumentType.FITNESS_CERTIFICATE: [
+        "fitness certificate", "certificate of fitness", "fit upto",
+        "fitness upto", "fitness valid", "motor vehicles department",
+        "inspecting authority", "roadworthiness",
+    ],
+    DocumentType.PUC: [
+        "pollution under control", "puc certificate", "emission test",
+        "pollution certificate", "co reading", "hc reading",
+        "smoke density", "valid upto", "testing center",
+    ],
 }
 
 

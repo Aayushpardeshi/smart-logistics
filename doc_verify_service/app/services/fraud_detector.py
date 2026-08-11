@@ -79,3 +79,55 @@ def is_expired(date_str: str) -> bool:
         except ValueError:
             continue
     return False
+
+from app.schemas.document import RCFields
+
+
+def check_fraud_rc(
+    raw_text: str,
+    rc_fields: RCFields,
+) -> tuple[FraudStatus, list[str]]:
+    """
+    Run fraud checks on RC document.
+    """
+    reasons = []
+
+    text_lower = raw_text.lower()
+    for keyword in SUSPICIOUS_KEYWORDS:
+        if keyword in text_lower:
+            reasons.append(f"Suspicious keyword found: '{keyword}'")
+            logger.warning(f"RC fraud check: suspicious keyword '{keyword}'")
+
+    if rc_fields.registration_valid_upto:
+        if is_expired(rc_fields.registration_valid_upto):
+            reasons.append(f"Registration expired: {rc_fields.registration_valid_upto}")
+            logger.warning(f"RC fraud check: expired {rc_fields.registration_valid_upto}")
+    else:
+        reasons.append("Registration validity date could not be extracted")
+        logger.warning("RC fraud check: missing validity date")
+
+    if not raw_text or len(raw_text.strip()) < 20:
+        reasons.append("Document has little or no readable text")
+        logger.warning("RC fraud check: insufficient text")
+
+    critical_missing = []
+    if not rc_fields.registration_number:
+        critical_missing.append("registration_number")
+    if not rc_fields.owner_name:
+        critical_missing.append("owner_name")
+    if not rc_fields.chassis_number:
+        critical_missing.append("chassis_number")
+
+    if len(critical_missing) >= 2:
+        reasons.append(f"Critical fields missing: {critical_missing}")
+        logger.warning(f"RC fraud check: missing fields {critical_missing}")
+
+    if len(reasons) >= 3:
+        status = FraudStatus.FRAUDULENT
+    elif len(reasons) >= 1:
+        status = FraudStatus.SUSPICIOUS
+    else:
+        status = FraudStatus.CLEAN
+
+    logger.info(f"RC fraud status: {status} | Reasons: {reasons}")
+    return status, reasons

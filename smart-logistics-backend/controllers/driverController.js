@@ -1,5 +1,5 @@
 const driverService = require("../services/driverService");
-const { profileSchema, truckSchema } = require("../validators/driverValidator");
+const { profileSchema, truckSchema, bidSchema } = require("../validators/driverValidator");
 
 const getProfile = async (req, res) => {
   const profile = await driverService.getProfile(req.user._id);
@@ -67,6 +67,62 @@ const verifyAadhaar = async (req, res) => {
   res.json({ success: true, data: result });
 };
 
+const searchLoads = async (req, res) => {
+  const loads = await driverService.searchLoads(req.query);
+  res.json({ success: true, data: loads });
+};
+
+const placeBid = async (req, res) => {
+  const { error, value } = bidSchema.validate(req.body);
+  if (error) {
+    res.status(400);
+    throw new Error(error.details[0].message);
+  }
+  try {
+    const bid = await driverService.placeBid(req.user._id, req.params.loadId, value);
+    res.status(201).json({ success: true, data: bid });
+  } catch (err) {
+    if (err.code === 11000) {
+      res.status(400);
+      throw new Error("You have already placed a bid on this load.");
+    }
+    throw err;
+  }
+};
+
+const listMyBids = async (req, res) => {
+  const bids = await driverService.listMyBids(req.user._id);
+  res.json({ success: true, data: bids });
+};
+
+const verifyTruckRC = async (req, res) => {
+  if (!req.file) {
+    res.status(400);
+    throw new Error("RC image is required");
+  }
+  const result = await driverService.verifyTruckRC(req.params.id, req.user._id, req.file.path);
+  res.json({ success: true, data: result });
+};
+
+const verifyTruckPUC = async (req, res) => {
+  if (!req.file) {
+    res.status(400);
+    throw new Error("PUC image is required");
+  }
+  const result = await driverService.verifyTruckPUC(req.params.id, req.user._id, req.file.path);
+  res.json({ success: true, data: result });
+};
+
+const listMyTrips = async (req, res) => {
+  const trips = await driverService.listMyTrips(req.user._id);
+  res.json({ success: true, data: trips });
+};
+
+const getTripDetails = async (req, res) => {
+  const trip = await driverService.getTripDetails(req.params.id, req.user._id);
+  res.json({ success: true, data: trip });
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -76,4 +132,11 @@ module.exports = {
   deleteTruck,
   verifyLicense,
   verifyAadhaar,
+  searchLoads,
+  placeBid,
+  listMyBids,
+  verifyTruckRC,
+  verifyTruckPUC,
+  listMyTrips,
+  getTripDetails,
 };

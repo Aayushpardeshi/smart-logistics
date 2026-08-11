@@ -1,0 +1,18 @@
+{
+  "nav": {
+    "dashboard": "ড্যাশবোর্ড",
+    "loads": "লোড",
+    "bids": "বিড",
+    "trips": "ট্রিপ",
+    "profile": "প্রোফাইল",
+    "vehicles": "যানবাহন",
+    "documents": "নথি"
+  },
+  "common": {
+    "logout": "লগআউট",
+    "loading": "লোড হচ্ছে...",
+    "save": "সংরক্ষণ",
+    "cancel": "বাতিল",
+    "language": "ভাষা"
+  }
+}

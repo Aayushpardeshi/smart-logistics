@@ -3,10 +3,16 @@ const { protect, authorize } = require("../middlewares/authMiddleware");
 const {
   getProfile,
   updateProfile,
-  createShipment,
-  listShipments,
-  updateShipment,
-  cancelShipment,
+  createLoad,
+  listLoads,
+  updateLoad,
+  cancelLoad,
+  listLoadBids,
+  acceptBid,
+  rejectBid,
+  listMyTrips,
+  getTripDetails,
+  getTripLocationHistory
 } = require("../controllers/businessController");
 
 const router = express.Router();
@@ -16,9 +22,17 @@ router.use(protect, authorize("business"));
 router.get("/profile", getProfile);
 router.put("/profile", updateProfile);
 
-router.post("/shipments", createShipment);
-router.get("/shipments", listShipments);
-router.put("/shipments/:id", updateShipment);
-router.put("/shipments/:id/cancel", cancelShipment);
+router.post("/loads", createLoad);
+router.get("/loads", listLoads);
+router.put("/loads/:id", updateLoad);
+router.put("/loads/:id/cancel", cancelLoad);
+
+router.get("/loads/:loadId/bids", listLoadBids);
+router.put("/bids/:bidId/accept", acceptBid);
+router.put("/bids/:bidId/reject", rejectBid);
+
+router.get("/trips", listMyTrips);
+router.get("/trips/:id", getTripDetails);
+router.get("/trips/:id/history", getTripLocationHistory);
 
 module.exports = router;

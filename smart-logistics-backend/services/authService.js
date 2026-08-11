@@ -1,6 +1,8 @@
 const bcrypt = require("bcryptjs");
 const userRepository = require("../repositories/userRepository");
 const generateToken = require("../utils/generateToken");
+const DriverProfile = require("../models/DriverProfile");
+const BusinessProfile = require("../models/BusinessProfile");
 
 const register = async ({ name, email, password, role, phone }) => {
   const existing = await userRepository.findByEmail(email);
@@ -12,6 +14,12 @@ const register = async ({ name, email, password, role, phone }) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await userRepository.createUser({ name, email, password: hashedPassword, role, phone });
+
+  if (role === 'driver') {
+    await DriverProfile.create({ user: user._id });
+  } else if (role === 'business') {
+    await BusinessProfile.create({ user: user._id, companyName: name });
+  }
 
   const token = generateToken(user._id, user.role);
   return { user: { id: user._id, name: user.name, email: user.email, role: user.role }, token };

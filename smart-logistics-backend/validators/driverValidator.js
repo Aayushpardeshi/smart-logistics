@@ -13,4 +13,10 @@ const truckSchema = Joi.object({
   capacityTons: Joi.number().positive().required(),
 });
 
-module.exports = { profileSchema, truckSchema };
+const bidSchema = Joi.object({
+  amount: Joi.number().positive().required(),
+  estimatedDelivery: Joi.date().iso().required(),
+  message: Joi.string().allow("").optional(),
+});
+
+module.exports = { profileSchema, truckSchema, bidSchema };

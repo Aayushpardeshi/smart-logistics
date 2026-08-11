@@ -1,0 +1,18 @@
+{
+  "nav": {
+    "dashboard": "डॅशबोर्ड",
+    "loads": "लोड्स",
+    "bids": "बोली",
+    "trips": "प्रवास",
+    "profile": "प्रोफाइल",
+    "vehicles": "वाहने",
+    "documents": "कागदपत्रे"
+  },
+  "common": {
+    "logout": "लॉग आउट",
+    "loading": "लोड होत आहे...",
+    "save": "जतन करा",
+    "cancel": "रद्द करा",
+    "language": "भाषा"
+  }
+}

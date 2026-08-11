@@ -14,12 +14,16 @@ const locationSchema = Joi.object({
   lng: Joi.number().optional(),
 });
 
-const shipmentSchema = Joi.object({
-  goodsType: Joi.string().required(),
-  weightTons: Joi.number().positive().required(),
-  pickupLocation: locationSchema.required(),
-  dropLocation: locationSchema.required(),
-  priceOffered: Joi.number().positive().optional(),
+const loadSchema = Joi.object({
+  source: locationSchema.required(),
+  destination: locationSchema.required(),
+  cargoType: Joi.string().required(),
+  cargoWeight: Joi.number().positive().required(),
+  vehicleType: Joi.string().required(),
+  pickupDate: Joi.date().iso().required(),
+  deliveryDate: Joi.date().iso().required(),
+  budget: Joi.number().positive().required(),
+  description: Joi.string().allow("").optional(),
 });
 
-module.exports = { profileSchema, shipmentSchema };
+module.exports = { profileSchema, loadSchema };

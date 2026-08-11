@@ -1,5 +1,9 @@
 const businessRepository = require("../repositories/businessRepository");
-const shipmentRepository = require("../repositories/shipmentRepository");
+const loadRepository = require("../repositories/loadRepository");
+const bidRepository = require("../repositories/bidRepository");
+const tripRepository = require("../repositories/tripRepository");
+
+const locationHistoryRepository = require("../repositories/locationHistoryRepository");
 
 const getProfile = async (userId) => {
   const profile = await businessRepository.findByUser(userId);
@@ -13,38 +17,122 @@ const getProfile = async (userId) => {
 
 const updateProfile = (userId, data) => businessRepository.upsertProfile(userId, data);
 
-const createShipment = (businessId, data) => shipmentRepository.create({ ...data, business: businessId });
+const createLoad = (businessId, data) => loadRepository.create({ ...data, businessId });
 
-const listShipments = (businessId) => shipmentRepository.findByBusiness(businessId);
+const listLoads = (businessId) => loadRepository.findByBusiness(businessId);
 
-const updateShipment = async (shipmentId, businessId, data) => {
-  const shipment = await shipmentRepository.findById(shipmentId);
-  if (!shipment) {
-    const err = new Error("Shipment not found");
+const updateLoad = async (loadId, businessId, data) => {
+  const load = await loadRepository.findById(loadId);
+  if (!load) {
+    const err = new Error("Load not found");
     err.statusCode = 404;
     throw err;
   }
-  if (shipment.business.toString() !== businessId.toString()) {
-    const err = new Error("Not authorized to modify this shipment");
+  if (load.businessId.toString() !== businessId.toString()) {
+    const err = new Error("Not authorized to modify this load");
     err.statusCode = 403;
     throw err;
   }
-  return shipmentRepository.updateById(shipmentId, data);
+  return loadRepository.updateById(loadId, data);
 };
 
-const cancelShipment = async (shipmentId, businessId) => {
-  const shipment = await shipmentRepository.findById(shipmentId);
-  if (!shipment) {
-    const err = new Error("Shipment not found");
+const cancelLoad = async (loadId, businessId) => {
+  const load = await loadRepository.findById(loadId);
+  if (!load) {
+    const err = new Error("Load not found");
     err.statusCode = 404;
     throw err;
   }
-  if (shipment.business.toString() !== businessId.toString()) {
-    const err = new Error("Not authorized to cancel this shipment");
+  if (load.businessId.toString() !== businessId.toString()) {
+    const err = new Error("Not authorized to cancel this load");
     err.statusCode = 403;
     throw err;
   }
-  return shipmentRepository.updateById(shipmentId, { status: "cancelled" });
+  return loadRepository.updateById(loadId, { status: "CANCELLED" });
 };
 
-module.exports = { getProfile, updateProfile, createShipment, listShipments, updateShipment, cancelShipment };
+const listLoadBids = async (loadId, businessId) => {
+  const load = await loadRepository.findById(loadId);
+  if (!load || load.businessId.toString() !== businessId.toString()) {
+    const err = new Error("Not authorized to view bids for this load");
+    err.statusCode = 403;
+    throw err;
+  }
+  return bidRepository.findByLoad(loadId);
+};
+
+const acceptBid = async (bidId, businessId) => {
+  const bid = await bidRepository.findById(bidId);
+  if (!bid) {
+    const err = new Error("Bid not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  const load = await loadRepository.findById(bid.loadId);
+  if (!load || load.businessId.toString() !== businessId.toString()) {
+    const err = new Error("Not authorized to accept bids for this load");
+    err.statusCode = 403;
+    throw err;
+  }
+  if (load.status !== "OPEN") {
+    const err = new Error("Load is no longer open");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await bidRepository.updateStatus(bidId, "ACCEPTED");
+  await bidRepository.rejectOtherBids(load._id, bidId);
+  
+  await loadRepository.updateById(load._id, { status: "ASSIGNED" });
+
+  const trip = await tripRepository.create({
+    loadId: load._id,
+    bidId: bid._id,
+    driverId: bid.driverId,
+    businessId: load.businessId,
+    source: load.source,
+    destination: load.destination,
+    status: "ASSIGNED"
+  });
+
+  return trip;
+};
+
+const rejectBid = async (bidId, businessId) => {
+  const bid = await bidRepository.findById(bidId);
+  if (!bid) {
+    const err = new Error("Bid not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  const load = await loadRepository.findById(bid.loadId);
+  if (!load || load.businessId.toString() !== businessId.toString()) {
+    const err = new Error("Not authorized to reject this bid");
+    err.statusCode = 403;
+    throw err;
+  }
+  
+  return bidRepository.updateStatus(bidId, "REJECTED");
+};
+
+const listMyTrips = (businessId) => tripRepository.findByBusiness(businessId);
+
+const getTripDetails = async (tripId, businessId) => {
+  const trip = await tripRepository.findById(tripId).populate("loadId").populate("driverId", "name phone");
+  if (!trip || trip.businessId.toString() !== businessId.toString()) {
+    const err = new Error("Trip not found or unauthorized");
+    err.statusCode = 404;
+    throw err;
+  }
+  return trip;
+};
+
+const getTripLocationHistory = async (tripId, businessId) => {
+  await getTripDetails(tripId, businessId);
+  return locationHistoryRepository.findByTrip(tripId);
+};
+
+module.exports = { 
+  getProfile, updateProfile, createLoad, listLoads, updateLoad, cancelLoad, 
+  listLoadBids, acceptBid, rejectBid, listMyTrips, getTripDetails, getTripLocationHistory
+};

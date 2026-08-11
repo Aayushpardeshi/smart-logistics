@@ -63,9 +63,25 @@ const verifyAadhaar = (frontPath, backPath) =>
     return res.data;
   });
 
+const verifyRC = (filePath) =>
+  callWithRetry(async () => {
+    const form = buildFormData(filePath);
+    const res = await client.post("/api/v1/documents/verify-rc", form, { headers: form.getHeaders() });
+    return res.data;
+  });
+
+const verifyPUC = (filePath) =>
+  callWithRetry(async () => {
+    const form = buildFormData(filePath);
+    const res = await client.post("/api/v1/documents/verify-puc", form, { headers: form.getHeaders() });
+    return res.data;
+  });
+
 module.exports = {
   verifyDrivingLicenseFront,
   verifyDrivingLicenseBack,
   verifyDrivingLicenseCombined,
   verifyAadhaar,
+  verifyRC,
+  verifyPUC,
 };

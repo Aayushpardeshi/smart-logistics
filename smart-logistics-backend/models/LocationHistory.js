@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const locationHistorySchema = new mongoose.Schema({
-  shipment: {
+  trip: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Shipment',
+    ref: 'Trip',
     required: true,
     index: true
   },
@@ -40,7 +40,7 @@ const locationHistorySchema = new mongoose.Schema({
   }
 });
 
-// Compound index for fast route playback queries (shipment + time ordered)
-locationHistorySchema.index({ shipment: 1, timestamp: 1 });
+// Compound index for fast route playback queries (trip + time ordered)
+locationHistorySchema.index({ trip: 1, timestamp: 1 });
 
 module.exports = mongoose.model('LocationHistory', locationHistorySchema);

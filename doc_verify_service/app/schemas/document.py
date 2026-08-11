@@ -104,3 +104,79 @@ class AadhaarCombinedResponse(BaseModel):
     raw_text_front: Optional[str] = None
     raw_text_back: Optional[str] = None
     error: Optional[str] = None
+
+class DocumentType(str, Enum):
+    DRIVING_LICENCE = "driving_licence"
+    DRIVING_LICENCE_BACK = "driving_licence_back"
+    DRIVING_LICENCE_COMBINED = "driving_licence_combined"
+    AADHAAR = "aadhaar"
+    AADHAAR_COMBINED = "aadhaar_combined"
+    INVOICE = "invoice"
+    INSURANCE = "insurance"
+    ID_CARD = "id_card"
+    RC = "rc"
+    FITNESS_CERTIFICATE = "fitness_certificate"
+    PUC = "puc"
+    UNKNOWN = "unknown"
+
+# ── RC (Registration Certificate) Schemas ───────────────────────
+
+class RCFields(BaseModel):
+    registration_number: Optional[str] = None
+    owner_name: Optional[str] = None
+    vehicle_class: Optional[str] = None
+    maker_model: Optional[str] = None
+    chassis_number: Optional[str] = None
+    engine_number: Optional[str] = None
+    fuel_type: Optional[str] = None
+    registration_date: Optional[str] = None
+    registration_valid_upto: Optional[str] = None
+    financer_name: Optional[str] = None
+
+
+class RCResponse(BaseModel):
+    document_type: DocumentType
+    fraud_status: FraudStatus
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    rc_fields: RCFields
+    raw_text: Optional[str] = None
+    error: Optional[str] = None
+
+
+# ── Fitness Certificate Schemas ──────────────────────────────────
+
+class FitnessFields(BaseModel):
+    registration_number: Optional[str] = None
+    owner_name: Optional[str] = None
+    vehicle_class: Optional[str] = None
+    fitness_valid_upto: Optional[str] = None
+    issue_date: Optional[str] = None
+    certificate_number: Optional[str] = None
+
+
+class FitnessResponse(BaseModel):
+    document_type: DocumentType
+    fraud_status: FraudStatus
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    fitness_fields: FitnessFields
+    raw_text: Optional[str] = None
+    error: Optional[str] = None
+
+
+# ── PUC (Pollution Under Control) Schemas ────────────────────────
+
+class PUCFields(BaseModel):
+    registration_number: Optional[str] = None
+    puc_certificate_number: Optional[str] = None
+    valid_upto: Optional[str] = None
+    test_date: Optional[str] = None
+    testing_center: Optional[str] = None
+
+
+class PUCResponse(BaseModel):
+    document_type: DocumentType
+    fraud_status: FraudStatus
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    puc_fields: PUCFields
+    raw_text: Optional[str] = None
+    error: Optional[str] = None

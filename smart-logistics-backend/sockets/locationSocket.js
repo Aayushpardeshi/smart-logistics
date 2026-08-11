@@ -1,4 +1,4 @@
-const Shipment = require('../models/Shipment');
+const Trip = require('../models/Trip');
 const LocationHistory = require('../models/LocationHistory');
 const logger = require('../utils/logger');
 
@@ -10,39 +10,41 @@ function registerLocationHandlers(io, socket) {
   const { id: userId, role } = socket.user;
 
   // ---------------------------------------------------------
-  // DRIVER: start_trip -> join shipment room, mark active
+  // DRIVER: start_trip -> join trip room, mark active
   // ---------------------------------------------------------
-  socket.on('driver:start_trip', async ({ shipmentId }) => {
+  socket.on('driver:start_trip', async ({ tripId }) => {
     try {
       if (role !== 'driver') {
         return socket.emit('error:tracking', { message: 'Only drivers can start a trip' });
       }
 
-      const shipment = await Shipment.findById(shipmentId);
-      if (!shipment) {
-        return socket.emit('error:tracking', { message: 'Shipment not found' });
+      const trip = await Trip.findById(tripId);
+      if (!trip) {
+        return socket.emit('error:tracking', { message: 'Trip not found' });
       }
 
-      if (String(shipment.assignedDriver) !== String(userId)) {
-        logger.warn(`Unauthorized start_trip attempt: driver=${userId} shipment=${shipmentId}`);
-        return socket.emit('error:tracking', { message: 'You are not assigned to this shipment' });
+      if (String(trip.driverId) !== String(userId)) {
+        logger.warn(`Unauthorized start_trip attempt: driver=${userId} trip=${tripId}`);
+        return socket.emit('error:tracking', { message: 'You are not assigned to this trip' });
       }
 
-      if (shipment.status !== 'in_transit') {
-        return socket.emit('error:tracking', { message: `Shipment status must be in_transit, currently: ${shipment.status}` });
+      if (trip.status !== 'IN_TRANSIT' && trip.status !== 'READY' && trip.status !== 'ASSIGNED') {
+        return socket.emit('error:tracking', { message: `Trip status must be ASSIGNED, READY or IN_TRANSIT, currently: ${trip.status}` });
       }
 
-      const room = `shipment:${shipmentId}`;
+      const room = `trip:${tripId}`;
       socket.join(room);
-      socket.currentShipmentRoom = room;
-      socket.currentShipmentId = shipmentId;
+      socket.currentTripRoom = room;
+      socket.currentTripId = tripId;
 
-      shipment.liveTracking.isActive = true;
-      shipment.liveTracking.startedAt = new Date();
-      await shipment.save();
+      if (trip.status !== 'IN_TRANSIT') {
+        trip.status = 'IN_TRANSIT';
+        trip.startedAt = new Date();
+        await trip.save();
+      }
 
       logger.info(`Driver ${userId} started trip, joined room ${room}`);
-      socket.emit('trip:started', { shipmentId, room });
+      socket.emit('trip:started', { tripId, room });
     } catch (err) {
       logger.error(`start_trip error: ${err.message}`);
       socket.emit('error:tracking', { message: 'Failed to start trip' });
@@ -52,11 +54,11 @@ function registerLocationHandlers(io, socket) {
   // ---------------------------------------------------------
   // DRIVER: location_update -> throttled, saved, broadcast to room
   // ---------------------------------------------------------
-  socket.on('driver:location_update', async ({ shipmentId, lat, lng, speed, heading, accuracy }) => {
+  socket.on('driver:location_update', async ({ tripId, lat, lng, speed, heading, accuracy }) => {
     try {
       if (role !== 'driver') return;
-      if (!socket.currentShipmentRoom || socket.currentShipmentId !== shipmentId) {
-        return socket.emit('error:tracking', { message: 'Not an active trip room for this shipment' });
+      if (!socket.currentTripRoom || socket.currentTripId !== tripId) {
+        return socket.emit('error:tracking', { message: 'Not an active trip room for this trip' });
       }
 
       // Throttle check (45s per driver)
@@ -67,30 +69,30 @@ function registerLocationHandlers(io, socket) {
       }
       lastEmitTime.set(userId, now);
 
-      const shipment = await Shipment.findById(shipmentId);
-      if (!shipment || shipment.status !== 'in_transit') {
-        return socket.emit('error:tracking', { message: 'Shipment not active for tracking' });
+      const trip = await Trip.findById(tripId);
+      if (!trip || trip.status !== 'IN_TRANSIT') {
+        return socket.emit('error:tracking', { message: 'Trip not active for tracking' });
       }
 
-      // Update lastLocation snapshot
-      shipment.liveTracking.lastLocation = {
-        lat, lng, speed: speed ?? null, heading: heading ?? null, updatedAt: new Date()
+      // Update currentLocation snapshot
+      trip.currentLocation = {
+        lat, lng, timestamp: new Date()
       };
-      await shipment.save();
+      await trip.save();
 
       // Log to history (fire-and-forget style, but awaited for reliability)
       await LocationHistory.create({
-        shipment: shipmentId,
+        trip: tripId,
         driver: userId,
         lat, lng, speed: speed ?? null, heading: heading ?? null, accuracy: accuracy ?? null
       });
 
       // Broadcast to room (business owner listening here)
-      io.to(socket.currentShipmentRoom).emit('location:update', {
-        shipmentId, lat, lng, speed, heading, accuracy, timestamp: new Date()
+      io.to(socket.currentTripRoom).emit('location:update', {
+        tripId, lat, lng, speed, heading, accuracy, timestamp: new Date()
       });
 
-      logger.info(`Location updated: shipment=${shipmentId} driver=${userId}`);
+      logger.info(`Location updated: trip=${tripId} driver=${userId}`);
     } catch (err) {
       logger.error(`location_update error: ${err.message}`);
       socket.emit('error:tracking', { message: 'Failed to update location' });
@@ -98,35 +100,35 @@ function registerLocationHandlers(io, socket) {
   });
 
   // ---------------------------------------------------------
-  // BUSINESS: join_shipment_room -> subscribe to their own shipment only
+  // BUSINESS: join_trip_room -> subscribe to their own trip only
   // ---------------------------------------------------------
-  socket.on('business:join_shipment_room', async ({ shipmentId }) => {
+  socket.on('business:join_trip_room', async ({ tripId }) => {
     try {
       if (role !== 'business') {
         return socket.emit('error:tracking', { message: 'Only business owners can view tracking' });
       }
 
-      const shipment = await Shipment.findById(shipmentId);
-      if (!shipment) {
-        return socket.emit('error:tracking', { message: 'Shipment not found' });
+      const trip = await Trip.findById(tripId);
+      if (!trip) {
+        return socket.emit('error:tracking', { message: 'Trip not found' });
       }
 
-      if (String(shipment.business) !== String(userId)) {
-        logger.warn(`Unauthorized room join attempt: business=${userId} shipment=${shipmentId}`);
-        return socket.emit('error:tracking', { message: 'You do not own this shipment' });
+      if (String(trip.businessId) !== String(userId)) {
+        logger.warn(`Unauthorized room join attempt: business=${userId} trip=${tripId}`);
+        return socket.emit('error:tracking', { message: 'You do not own this trip' });
       }
 
-      const room = `shipment:${shipmentId}`;
+      const room = `trip:${tripId}`;
       socket.join(room);
-      socket.currentShipmentRoom = room;
+      socket.currentTripRoom = room;
 
       logger.info(`Business ${userId} subscribed to room ${room}`);
       socket.emit('room:joined', {
-        shipmentId,
-        lastLocation: shipment.liveTracking.lastLocation
+        tripId,
+        currentLocation: trip.currentLocation
       });
     } catch (err) {
-      logger.error(`join_shipment_room error: ${err.message}`);
+      logger.error(`join_trip_room error: ${err.message}`);
       socket.emit('error:tracking', { message: 'Failed to join tracking room' });
     }
   });
@@ -134,37 +136,36 @@ function registerLocationHandlers(io, socket) {
   // ---------------------------------------------------------
   // BUSINESS: confirm_delivery -> ONLY way to end tracking
   // ---------------------------------------------------------
-  socket.on('business:confirm_delivery', async ({ shipmentId }) => {
+  socket.on('business:confirm_delivery', async ({ tripId }) => {
     try {
       if (role !== 'business') {
         return socket.emit('error:tracking', { message: 'Only business owners can confirm delivery' });
       }
 
-      const shipment = await Shipment.findById(shipmentId);
-      if (!shipment) {
-        return socket.emit('error:tracking', { message: 'Shipment not found' });
+      const trip = await Trip.findById(tripId);
+      if (!trip) {
+        return socket.emit('error:tracking', { message: 'Trip not found' });
       }
 
-      if (String(shipment.business) !== String(userId)) {
-        logger.warn(`Unauthorized confirm_delivery attempt: business=${userId} shipment=${shipmentId}`);
-        return socket.emit('error:tracking', { message: 'You do not own this shipment' });
+      if (String(trip.businessId) !== String(userId)) {
+        logger.warn(`Unauthorized confirm_delivery attempt: business=${userId} trip=${tripId}`);
+        return socket.emit('error:tracking', { message: 'You do not own this trip' });
       }
 
-      shipment.status = 'delivered';
-      shipment.liveTracking.isActive = false;
-      shipment.liveTracking.endedAt = new Date();
-      await shipment.save();
+      trip.status = 'DELIVERED';
+      trip.deliveredAt = new Date();
+      await trip.save();
 
-      const room = `shipment:${shipmentId}`;
-      io.to(room).emit('trip:ended', { shipmentId, message: 'Delivery confirmed' });
+      const room = `trip:${tripId}`;
+      io.to(room).emit('trip:ended', { tripId, message: 'Delivery confirmed' });
 
       // Force disconnect all sockets in room from this room (cleanup)
       const socketsInRoom = await io.in(room).fetchSockets();
       socketsInRoom.forEach((s) => s.leave(room));
 
-      lastEmitTime.delete(String(shipment.assignedDriver));
+      lastEmitTime.delete(String(trip.driverId));
 
-      logger.info(`Delivery confirmed: shipment=${shipmentId} by business=${userId}`);
+      logger.info(`Delivery confirmed: trip=${tripId} by business=${userId}`);
     } catch (err) {
       logger.error(`confirm_delivery error: ${err.message}`);
       socket.emit('error:tracking', { message: 'Failed to confirm delivery' });
@@ -176,8 +177,6 @@ function registerLocationHandlers(io, socket) {
   // ---------------------------------------------------------
   socket.on('disconnect', () => {
     logger.info(`Socket disconnected: userId=${userId} role=${role}`);
-    // No shipment status change — driver can reconnect and resume
-    // since shipment.status remains 'in_transit'
   });
 }
 

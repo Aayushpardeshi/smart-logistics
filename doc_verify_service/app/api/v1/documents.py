@@ -11,6 +11,9 @@ from app.services.verification_service_back import verify_back_document
 from app.services.verification_service_combined import verify_combined_document
 from app.services.verification_service_aadhaar_combined import verify_aadhaar_combined
 from app.dependencies import get_allowed_extensions, get_max_file_size
+from app.schemas.document import RCResponse, PUCResponse
+from app.services.verification_service_rc import verify_rc_document
+from app.services.verification_service_puc import verify_puc_document
 
 router = APIRouter()
 
@@ -125,3 +128,33 @@ async def verify_aadhaar_endpoint(
         back_bytes=back_bytes,
         back_filename=back_file.filename,
     )
+
+@router.post("/verify-rc", response_model=RCResponse)
+async def verify_rc_endpoint(
+    file: UploadFile = File(...),
+    allowed_extensions: list[str] = Depends(get_allowed_extensions),
+    max_file_size: int = Depends(get_max_file_size),
+):
+    """
+    Vehicle Registration Certificate (RC).
+    Extracts registration number, owner, chassis/engine no, validity etc.
+    """
+    file_bytes = await file.read()
+    validate_file(file, file_bytes, allowed_extensions, max_file_size)
+    logger.info(f"RC received: {file.filename} | {len(file_bytes)} bytes")
+    return verify_rc_document(file_bytes, file.filename)
+
+@router.post("/verify-puc", response_model=PUCResponse)
+async def verify_puc_endpoint(
+    file: UploadFile = File(...),
+    allowed_extensions: list[str] = Depends(get_allowed_extensions),
+    max_file_size: int = Depends(get_max_file_size),
+):
+    """
+    Pollution Under Control (PUC) Certificate.
+    Extracts registration number, PUC cert number, valid upto, etc.
+    """
+    file_bytes = await file.read()
+    validate_file(file, file_bytes, allowed_extensions, max_file_size)
+    logger.info(f"PUC received: {file.filename} | {len(file_bytes)} bytes")
+    return verify_puc_document(file_bytes, file.filename)
