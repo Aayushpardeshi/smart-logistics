@@ -15,6 +15,8 @@ const {
   listMyBids,
   verifyTruckRC,
   verifyTruckPUC,
+  verifyTruckInsurance,
+  verifyTruckPermit,
   listMyTrips,
   getTripDetails,
 } = require("../controllers/driverController");
@@ -33,6 +35,14 @@ router.delete("/trucks/:id", deleteTruck);
 
 router.post("/trucks/:id/verify-rc", upload.single("file"), verifyTruckRC);
 router.post("/trucks/:id/verify-puc", upload.single("file"), verifyTruckPUC);
+router.post("/trucks/:id/verify-insurance", upload.single("file"), verifyTruckInsurance);
+router.post("/trucks/:id/verify-permit", upload.single("file"), verifyTruckPermit);
+
+router.post(
+  "/verify-license",
+  upload.fields([{ name: "front", maxCount: 1 }, { name: "back", maxCount: 1 }]),
+  verifyLicense
+);
 
 router.post(
   "/verify-aadhaar",

@@ -34,32 +34,59 @@ def extract_aadhaar_front_fields(text: str) -> AadhaarFrontFields:
 
     # ── Aadhaar Number ────────────────────────────────────────
     aadhaar_number = None
-    m = re.search(r"\b(\d{4}\s\d{4}\s\d{4})\b", full_text)
+    m = re.search(r"\b(\d{4})[\s.-]?(\d{4})[\s.-]?(\d{4})\b", full_text)
     if m:
-        aadhaar_number = m.group(1).strip()
-
-    if not aadhaar_number:
-        m = re.search(r"\b(\d{12})\b", full_text)
-        if m:
-            raw = m.group(1)
-            aadhaar_number = f"{raw[:4]} {raw[4:8]} {raw[8:]}"
+        aadhaar_number = f"{m.group(1)} {m.group(2)} {m.group(3)}"
 
     logger.info(f"Aadhaar number: {aadhaar_number}")
 
     # ── Name ──────────────────────────────────────────────────
     name = None
-    for line in lines:
-        if re.search(r"[\u0900-\u097F]", line):
-            continue
-        if re.search(
-            r"government|india|father|year|birth|male|female|"
-            r"aadhaar|uidai|www|help|address|unique|identification",
-            line, re.IGNORECASE
-        ):
-            continue
-        if re.match(r"^[A-Z][a-zA-Z\s]{4,40}$", line.strip()):
-            name = line.strip()
+
+    def is_valid_name_word(w: str) -> bool:
+        return w.isalpha() and len(w) >= 2 and (w.isupper() or w.istitle())
+
+    # Find line index of "Government of India" / "Government" header
+    header_idx = -1
+    for idx, line in enumerate(lines):
+        if re.search(r"(government|india|authority|unique|identification)", line, re.IGNORECASE):
+            header_idx = idx
             break
+
+    # Strictly search lines AFTER the "Government of India" header to exclude top OCR noise
+    search_lines = lines[header_idx + 1:] if header_idx >= 0 else lines
+
+    # Priority 1: Multi-word Name below Government of India header (e.g. Punde Supriya Santosh, Aruna Bhau Punde, PUNDE SUYOG SANTOSH)
+    for line in search_lines:
+        candidate = line.strip()
+        if re.search(r"[\u0900-\u097F]", candidate):
+            continue
+        if re.search(r"(government|india|authority|unique|identification|aadhaar|help|father|mobile|dob|male|female|download|enrolment|issue|address)", candidate, re.IGNORECASE):
+            continue
+        words = candidate.split()
+        if len(words) >= 2 and all(is_valid_name_word(w) for w in words):
+            name = candidate
+            break
+
+    # Priority 2: Scan upwards from DOB / Gender line
+    if not name:
+        anchor_idx = -1
+        for idx, line in enumerate(lines):
+            if re.search(r"(dob|date\s*of\s*birth|year\s*of\s*birth|\d{2}/\d{2}/\d{4}|male|female)", line, re.IGNORECASE):
+                anchor_idx = idx
+                break
+
+        if anchor_idx > 0:
+            for idx in range(anchor_idx - 1, -1, -1):
+                candidate = lines[idx].strip()
+                if re.search(r"[\u0900-\u097F]", candidate):
+                    continue
+                if re.search(r"(government|india|authority|unique|identification|aadhaar|help|father|mobile|dob|male|female|download)", candidate, re.IGNORECASE):
+                    continue
+                words = candidate.split()
+                if len(words) >= 2 and all(is_valid_name_word(w) for w in words):
+                    name = candidate
+                    break
 
     logger.info(f"Name: {name}")
 

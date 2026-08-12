@@ -6,19 +6,16 @@ const { docVerifyServiceUrl } = require("../config/aiServices");
 
 const client = axios.create({
   baseURL: docVerifyServiceUrl,
-  timeout: 30000,
+  timeout: 180000,
 });
 
-const buildFormData = (filePath, extraFilePath = null, extraFieldName = null) => {
+const buildFormDataFromFileObj = (fileObj) => {
   const form = new FormData();
-  form.append("file", fs.createReadStream(filePath));
-  if (extraFilePath && extraFieldName) {
-    form.append(extraFieldName, fs.createReadStream(extraFilePath));
-  }
+  form.append("file", fileObj.buffer, { filename: fileObj.originalname, contentType: fileObj.mimetype });
   return form;
 };
 
-const callWithRetry = async (fn, retries = 2) => {
+const callWithRetry = async (fn, retries = 0) => {
   for (let attempt = 1; attempt <= retries + 1; attempt++) {
     try {
       return await fn();
@@ -33,47 +30,63 @@ const callWithRetry = async (fn, retries = 2) => {
   }
 };
 
-const verifyDrivingLicenseFront = (filePath) =>
+const verifyDrivingLicenseFront = (fileObj) =>
   callWithRetry(async () => {
-    const form = buildFormData(filePath);
+    const form = buildFormDataFromFileObj(fileObj);
     const res = await client.post("/api/v1/documents/verify", form, { headers: form.getHeaders() });
     return res.data;
   });
 
-const verifyDrivingLicenseBack = (filePath) =>
+const verifyDrivingLicenseBack = (fileObj) =>
   callWithRetry(async () => {
-    const form = buildFormData(filePath);
+    const form = buildFormDataFromFileObj(fileObj);
     const res = await client.post("/api/v1/documents/verify-back", form, { headers: form.getHeaders() });
     return res.data;
   });
 
-const verifyDrivingLicenseCombined = (frontPath, backPath) =>
+const verifyDrivingLicenseCombined = (frontObj, backObj) =>
   callWithRetry(async () => {
-    const form = buildFormData(frontPath, backPath, "back_file");
+    const form = new FormData();
+    form.append("front_file", frontObj.buffer, { filename: frontObj.originalname, contentType: frontObj.mimetype });
+    form.append("back_file", backObj.buffer, { filename: backObj.originalname, contentType: backObj.mimetype });
     const res = await client.post("/api/v1/documents/verify-combined", form, { headers: form.getHeaders() });
     return res.data;
   });
 
-const verifyAadhaar = (frontPath, backPath) =>
+const verifyAadhaar = (frontObj, backObj) =>
   callWithRetry(async () => {
     const form = new FormData();
-    form.append("front_file", fs.createReadStream(frontPath));
-    form.append("back_file", fs.createReadStream(backPath));
+    form.append("front_file", frontObj.buffer, { filename: frontObj.originalname, contentType: frontObj.mimetype });
+    form.append("back_file", backObj.buffer, { filename: backObj.originalname, contentType: backObj.mimetype });
     const res = await client.post("/api/v1/documents/verify-aadhaar", form, { headers: form.getHeaders() });
     return res.data;
   });
 
-const verifyRC = (filePath) =>
+const verifyRC = (fileObj) =>
   callWithRetry(async () => {
-    const form = buildFormData(filePath);
+    const form = buildFormDataFromFileObj(fileObj);
     const res = await client.post("/api/v1/documents/verify-rc", form, { headers: form.getHeaders() });
     return res.data;
   });
 
-const verifyPUC = (filePath) =>
+const verifyPUC = (fileObj) =>
   callWithRetry(async () => {
-    const form = buildFormData(filePath);
+    const form = buildFormDataFromFileObj(fileObj);
     const res = await client.post("/api/v1/documents/verify-puc", form, { headers: form.getHeaders() });
+    return res.data;
+  });
+
+const verifyInsurance = (fileObj) =>
+  callWithRetry(async () => {
+    const form = buildFormDataFromFileObj(fileObj);
+    const res = await client.post("/api/v1/documents/verify-insurance", form, { headers: form.getHeaders() });
+    return res.data;
+  });
+
+const verifyPermit = (fileObj) =>
+  callWithRetry(async () => {
+    const form = buildFormDataFromFileObj(fileObj);
+    const res = await client.post("/api/v1/documents/verify-permit", form, { headers: form.getHeaders() });
     return res.data;
   });
 
@@ -84,4 +97,6 @@ module.exports = {
   verifyAadhaar,
   verifyRC,
   verifyPUC,
+  verifyInsurance,
+  verifyPermit,
 };

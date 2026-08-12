@@ -48,8 +48,8 @@ const verifyLicense = async (req, res) => {
   }
   const result = await driverService.verifyLicense(
     req.user._id,
-    req.files.front[0].path,
-    req.files.back[0].path
+    req.files.front[0],
+    req.files.back[0]
   );
   res.json({ success: true, data: result });
 };
@@ -61,8 +61,8 @@ const verifyAadhaar = async (req, res) => {
   }
   const result = await driverService.verifyAadhaar(
     req.user._id,
-    req.files.front[0].path,
-    req.files.back[0].path
+    req.files.front[0],
+    req.files.back[0]
   );
   res.json({ success: true, data: result });
 };
@@ -100,7 +100,7 @@ const verifyTruckRC = async (req, res) => {
     res.status(400);
     throw new Error("RC image is required");
   }
-  const result = await driverService.verifyTruckRC(req.params.id, req.user._id, req.file.path);
+  const result = await driverService.verifyTruckRC(req.params.id, req.user._id, req.file);
   res.json({ success: true, data: result });
 };
 
@@ -109,7 +109,25 @@ const verifyTruckPUC = async (req, res) => {
     res.status(400);
     throw new Error("PUC image is required");
   }
-  const result = await driverService.verifyTruckPUC(req.params.id, req.user._id, req.file.path);
+  const result = await driverService.verifyTruckPUC(req.params.id, req.user._id, req.file);
+  res.json({ success: true, data: result });
+};
+
+const verifyTruckInsurance = async (req, res) => {
+  if (!req.file) {
+    res.status(400);
+    throw new Error("Insurance document image is required");
+  }
+  const result = await driverService.verifyTruckInsurance(req.params.id, req.user._id, req.file);
+  res.json({ success: true, data: result });
+};
+
+const verifyTruckPermit = async (req, res) => {
+  if (!req.file) {
+    res.status(400);
+    throw new Error("Permit document image is required");
+  }
+  const result = await driverService.verifyTruckPermit(req.params.id, req.user._id, req.file);
   res.json({ success: true, data: result });
 };
 
@@ -137,6 +155,8 @@ module.exports = {
   listMyBids,
   verifyTruckRC,
   verifyTruckPUC,
+  verifyTruckInsurance,
+  verifyTruckPermit,
   listMyTrips,
   getTripDetails,
 };

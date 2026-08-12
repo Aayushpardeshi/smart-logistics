@@ -306,14 +306,14 @@ export default function DriverDashboard() {
               </button>
 
               <button 
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate('/documents')}
                 className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-warning hover:bg-orange-50/50 transition-all group"
               >
                 <div className="flex items-center text-slate-700 font-medium group-hover:text-warning transition-colors">
                   <div className="bg-orange-100 p-2 rounded-lg text-warning mr-3">
                     <FileText size={18} />
                   </div>
-                  Update Documents
+                  Verify Documents (AI OCR)
                 </div>
                 <ArrowRight size={16} className="text-slate-300 group-hover:text-warning group-hover:translate-x-1 transition-all" />
               </button>

@@ -16,6 +16,7 @@ export default function Tracking() {
   const [status, setStatus] = useState("Not connected");
   const [connected, setConnected] = useState(false);
   const [trackingActive, setTrackingActive] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -124,7 +125,12 @@ export default function Tracking() {
 
   const handleConfirmDelivery = () => {
     if (!tripId || !connected) return;
-    if (window.confirm("Are you sure you want to mark this trip as delivered? This will end tracking.")) {
+    setShowConfirmModal(true);
+  };
+
+  const executeDeliveryConfirmation = () => {
+    setShowConfirmModal(false);
+    if (socketRef.current) {
       socketRef.current.emit("business:confirm_delivery", { tripId });
     }
   };
@@ -156,7 +162,7 @@ export default function Tracking() {
             <button
               onClick={handleConnectAndJoin}
               disabled={!tripId}
-              className="w-full bg-primary hover:bg-slate-800 text-white px-4 py-3 rounded-xl font-bold transition-colors disabled:opacity-50"
+              className="w-full bg-primary hover:bg-slate-800 text-white px-4 py-3 rounded-xl font-bold transition-colors disabled:opacity-50 cursor-pointer"
             >
               Connect to Tracking
             </button>
@@ -165,7 +171,7 @@ export default function Tracking() {
               {user?.role === "driver" && !trackingActive && (
                 <button
                   onClick={handleStartTrip}
-                  className="w-full bg-accent hover:bg-cyan-600 text-white px-4 py-3 rounded-xl font-bold transition-colors shadow-[0_0_15px_rgba(6,182,212,0.3)] flex justify-center items-center"
+                  className="w-full bg-accent hover:bg-cyan-600 text-white px-4 py-3 rounded-xl font-bold transition-colors shadow-[0_0_15px_rgba(6,182,212,0.3)] flex justify-center items-center cursor-pointer"
                 >
                   <Play size={18} className="mr-2 fill-current" /> Start Trip & Share Location
                 </button>
@@ -174,7 +180,7 @@ export default function Tracking() {
               {user?.role === "business" && trackingActive && (
                 <button
                   onClick={handleConfirmDelivery}
-                  className="w-full bg-success hover:bg-green-700 text-white px-4 py-3 rounded-xl font-bold transition-colors flex justify-center items-center mt-auto shadow-[0_0_15px_rgba(22,163,74,0.3)]"
+                  className="w-full bg-success hover:bg-green-700 text-white px-4 py-3 rounded-xl font-bold transition-colors flex justify-center items-center mt-auto shadow-[0_0_15px_rgba(22,163,74,0.3)] cursor-pointer"
                 >
                   <CheckCircle size={18} className="mr-2" /> Confirm Delivery
                 </button>
@@ -202,6 +208,40 @@ export default function Tracking() {
            </div>
         )}
       </div>
+
+      {/* Confirmation Modal for Delivery */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-100 p-6 text-center">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle size={36} />
+            </div>
+            
+            <h3 className="text-xl font-bold text-primary mb-2">Confirm Order Delivery?</h3>
+            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+              Has this shipment been successfully delivered by the driver? Confirming delivery will finalize the order status and complete the trip.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                No, Go Back
+              </button>
+              <button
+                type="button"
+                onClick={executeDeliveryConfirmation}
+                className="flex-1 px-4 py-3 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center cursor-pointer"
+              >
+                <CheckCircle size={18} className="mr-1.5" />
+                Yes, Delivered
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

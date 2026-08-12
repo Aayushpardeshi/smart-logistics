@@ -5,17 +5,41 @@ const tripRepository = require("../repositories/tripRepository");
 
 const locationHistoryRepository = require("../repositories/locationHistoryRepository");
 
+const User = require("../models/User");
+
 const getProfile = async (userId) => {
-  const profile = await businessRepository.findByUser(userId);
+  const user = await User.findById(userId).select("-password");
+  let profile = await businessRepository.findByUser(userId);
   if (!profile) {
-    const err = new Error("Business profile not found");
-    err.statusCode = 404;
-    throw err;
+    profile = await businessRepository.upsertProfile(userId, { companyName: user?.name || "My Business" });
   }
-  return profile;
+  return {
+    ...profile.toObject(),
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    role: user?.role || "business"
+  };
 };
 
-const updateProfile = (userId, data) => businessRepository.upsertProfile(userId, data);
+const updateProfile = async (userId, data) => {
+  const { name, phone, ...profileData } = data;
+  if (name || phone) {
+    const userUpdate = {};
+    if (name) userUpdate.name = name.trim();
+    if (phone) userUpdate.phone = phone.trim();
+    await User.findByIdAndUpdate(userId, { $set: userUpdate });
+  }
+  const updatedProfile = await businessRepository.upsertProfile(userId, profileData);
+  const updatedUser = await User.findById(userId).select("-password");
+  return {
+    ...updatedProfile.toObject(),
+    name: updatedUser?.name || "",
+    email: updatedUser?.email || "",
+    phone: updatedUser?.phone || "",
+    role: updatedUser?.role || "business"
+  };
+};
 
 const createLoad = (businessId, data) => loadRepository.create({ ...data, businessId });
 

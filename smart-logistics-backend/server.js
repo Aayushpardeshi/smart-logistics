@@ -11,7 +11,8 @@ const logger = require("./utils/logger");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
 const driverRoutes = require("./routes/driverRoutes");
 const businessRoutes = require("./routes/businessRoutes");
-const http = require('http');
+const path = require("path");
+const http = require("http");
 const initSocketServer = require('./sockets/index');
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGINS?.split(",") || "*" }));
 app.use(express.json());
 app.use(morgan("dev"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", service: "smart-logistics-backend" });

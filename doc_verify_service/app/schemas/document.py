@@ -117,6 +117,7 @@ class DocumentType(str, Enum):
     RC = "rc"
     FITNESS_CERTIFICATE = "fitness_certificate"
     PUC = "puc"
+    PERMIT = "permit"
     UNKNOWN = "unknown"
 
 # ── RC (Registration Certificate) Schemas ───────────────────────
@@ -178,5 +179,47 @@ class PUCResponse(BaseModel):
     fraud_status: FraudStatus
     confidence_score: float = Field(ge=0.0, le=1.0)
     puc_fields: PUCFields
+    raw_text: Optional[str] = None
+    error: Optional[str] = None
+
+
+# ── Insurance Policy Schemas ─────────────────────────────────────
+
+class InsuranceFields(BaseModel):
+    policy_number: Optional[str] = None
+    insured_name: Optional[str] = None
+    registration_number: Optional[str] = None
+    insurer_name: Optional[str] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    premium_amount: Optional[str] = None
+
+
+class InsuranceResponse(BaseModel):
+    document_type: DocumentType
+    fraud_status: FraudStatus
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    insurance_fields: InsuranceFields
+    raw_text: Optional[str] = None
+    error: Optional[str] = None
+
+
+# ── Permit Schemas ───────────────────────────────────────────────
+
+class PermitFields(BaseModel):
+    permit_number: Optional[str] = None
+    permit_type: Optional[str] = None
+    holder_name: Optional[str] = None
+    registration_number: Optional[str] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    issuing_authority: Optional[str] = None
+
+
+class PermitResponse(BaseModel):
+    document_type: DocumentType
+    fraud_status: FraudStatus
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    permit_fields: PermitFields
     raw_text: Optional[str] = None
     error: Optional[str] = None

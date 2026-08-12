@@ -11,9 +11,11 @@ from app.services.verification_service_back import verify_back_document
 from app.services.verification_service_combined import verify_combined_document
 from app.services.verification_service_aadhaar_combined import verify_aadhaar_combined
 from app.dependencies import get_allowed_extensions, get_max_file_size
-from app.schemas.document import RCResponse, PUCResponse
+from app.schemas.document import RCResponse, PUCResponse, InsuranceResponse, PermitResponse
 from app.services.verification_service_rc import verify_rc_document
 from app.services.verification_service_puc import verify_puc_document
+from app.services.verification_service_insurance import verify_insurance_document
+from app.services.verification_service_permit import verify_permit_document
 
 router = APIRouter()
 
@@ -158,3 +160,33 @@ async def verify_puc_endpoint(
     validate_file(file, file_bytes, allowed_extensions, max_file_size)
     logger.info(f"PUC received: {file.filename} | {len(file_bytes)} bytes")
     return verify_puc_document(file_bytes, file.filename)
+
+@router.post("/verify-insurance", response_model=InsuranceResponse)
+async def verify_insurance_endpoint(
+    file: UploadFile = File(...),
+    allowed_extensions: list[str] = Depends(get_allowed_extensions),
+    max_file_size: int = Depends(get_max_file_size),
+):
+    """
+    Vehicle Insurance Policy Document.
+    Extracts policy number, insured name, registration number, validity etc.
+    """
+    file_bytes = await file.read()
+    validate_file(file, file_bytes, allowed_extensions, max_file_size)
+    logger.info(f"Insurance received: {file.filename} | {len(file_bytes)} bytes")
+    return verify_insurance_document(file_bytes, file.filename)
+
+@router.post("/verify-permit", response_model=PermitResponse)
+async def verify_permit_endpoint(
+    file: UploadFile = File(...),
+    allowed_extensions: list[str] = Depends(get_allowed_extensions),
+    max_file_size: int = Depends(get_max_file_size),
+):
+    """
+    Vehicle Permit Document.
+    Extracts permit number, permit type, holder name, validity etc.
+    """
+    file_bytes = await file.read()
+    validate_file(file, file_bytes, allowed_extensions, max_file_size)
+    logger.info(f"Permit received: {file.filename} | {len(file_bytes)} bytes")
+    return verify_permit_document(file_bytes, file.filename)

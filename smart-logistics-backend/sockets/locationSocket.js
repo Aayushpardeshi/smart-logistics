@@ -1,4 +1,5 @@
 const Trip = require('../models/Trip');
+const Load = require('../models/Load');
 const LocationHistory = require('../models/LocationHistory');
 const logger = require('../utils/logger');
 
@@ -41,6 +42,10 @@ function registerLocationHandlers(io, socket) {
         trip.status = 'IN_TRANSIT';
         trip.startedAt = new Date();
         await trip.save();
+
+        if (trip.loadId) {
+          await Load.findByIdAndUpdate(trip.loadId, { status: 'IN_TRANSIT' });
+        }
       }
 
       logger.info(`Driver ${userId} started trip, joined room ${room}`);
@@ -155,6 +160,10 @@ function registerLocationHandlers(io, socket) {
       trip.status = 'DELIVERED';
       trip.deliveredAt = new Date();
       await trip.save();
+
+      if (trip.loadId) {
+        await Load.findByIdAndUpdate(trip.loadId, { status: 'DELIVERED' });
+      }
 
       const room = `trip:${tripId}`;
       io.to(room).emit('trip:ended', { tripId, message: 'Delivery confirmed' });

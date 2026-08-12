@@ -1,6 +1,8 @@
 const Joi = require("joi");
 
 const profileSchema = Joi.object({
+  name: Joi.string().trim().optional(),
+  phone: Joi.string().trim().optional(),
   companyName: Joi.string().min(2).required(),
   gstNumber: Joi.string().allow("").optional(),
   address: Joi.string().allow("").optional(),

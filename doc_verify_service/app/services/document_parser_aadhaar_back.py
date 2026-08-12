@@ -34,15 +34,9 @@ def extract_aadhaar_back_fields(text: str) -> AadhaarBackFields:
 
     # ── Aadhaar Number ────────────────────────────────────────
     aadhaar_number = None
-    m = re.search(r"\b(\d{4}\s\d{4}\s\d{4})\b", full_text)
+    m = re.search(r"\b(\d{4})[\s.-]?(\d{4})[\s.-]?(\d{4})\b", full_text)
     if m:
-        aadhaar_number = m.group(1).strip()
-
-    if not aadhaar_number:
-        m = re.search(r"\b(\d{12})\b", full_text)
-        if m:
-            raw = m.group(1)
-            aadhaar_number = f"{raw[:4]} {raw[4:8]} {raw[8:]}"
+        aadhaar_number = f"{m.group(1)} {m.group(2)} {m.group(3)}"
 
     logger.info(f"Back Aadhaar number: {aadhaar_number}")
 

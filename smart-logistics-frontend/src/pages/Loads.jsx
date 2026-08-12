@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import { Loader2, Search, PlusCircle, Package, ArrowRight, X } from "lucide-react";
+import { Loader2, Search, PlusCircle, Package, ArrowRight, X, CheckCircle } from "lucide-react";
 
 export default function Loads() {
   const { user } = useAuth();
   const [loads, setLoads] = useState([]);
+  const [driverBids, setDriverBids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState(null);
@@ -37,16 +39,30 @@ export default function Loads() {
   const fetchLoads = async () => {
     try {
       setLoading(true);
-      const res = user.role === 'business' 
-        ? await api.get("/business/loads") 
-        : await api.get("/driver/loads/open");
-      setLoads(res.data.data || []);
+      if (user.role === 'business') {
+        const res = await api.get("/business/loads");
+        setLoads(res.data.data || []);
+      } else {
+        const [loadsRes, bidsRes] = await Promise.all([
+          api.get("/driver/loads/open"),
+          api.get("/driver/bids")
+        ]);
+        setLoads(loadsRes.data.data || []);
+        setDriverBids(bidsRes.data.data || []);
+      }
     } catch (err) {
       console.error(err);
       setError("Failed to fetch loads.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const hasDriverBidOnLoad = (loadId) => {
+    return driverBids.some((b) => {
+      const bLoadId = b.loadId?._id ? b.loadId._id.toString() : b.loadId?.toString();
+      return bLoadId === loadId.toString() && b.status !== "WITHDRAWN";
+    });
   };
 
   const handleCreateLoad = async (e) => {
@@ -64,9 +80,10 @@ export default function Loads() {
         budget: Number(newLoad.budget)
       });
       setShowModal(false);
+      toast.success("Load created successfully!");
       fetchLoads();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to create load");
+      toast.error(err.response?.data?.message || "Failed to create load");
       setLoading(false);
     }
   };
@@ -81,10 +98,11 @@ export default function Loads() {
         message: bidData.message
       });
       setShowModal(false);
-      alert("Bid placed successfully!");
-      fetchLoads(); // Refresh to remove or update status
+      setBidData({ amount: "", estimatedDelivery: "", message: "" });
+      toast.success("Bid placed successfully!");
+      fetchLoads();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to place bid");
+      toast.error(err.response?.data?.message || "Failed to place bid");
       setLoading(false);
     }
   };
@@ -162,13 +180,26 @@ export default function Loads() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       {user.role === 'business' ? (
-                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                           load.status === 'DELIVERED' || load.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                           load.status === 'IN_TRANSIT' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                           load.status === 'ASSIGNED' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                           'bg-slate-100 text-slate-700'
+                         }`}>
                            {load.status}
                          </span>
+                      ) : hasDriverBidOnLoad(load._id) ? (
+                         <button 
+                           disabled
+                           className="bg-emerald-100 text-emerald-700 border border-emerald-200/80 px-4 py-1.5 rounded-lg text-sm font-bold cursor-not-allowed inline-flex items-center space-x-1"
+                         >
+                           <CheckCircle size={15} className="mr-1 text-emerald-600" />
+                           <span>Bid Placed</span>
+                         </button>
                       ) : (
                          <button 
                            onClick={() => { setSelectedLoadId(load._id); setShowModal(true); }}
-                           className="bg-accent hover:bg-cyan-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
+                           className="bg-accent hover:bg-cyan-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
                          >
                            Place Bid
                          </button>

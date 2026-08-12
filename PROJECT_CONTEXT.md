@@ -80,25 +80,30 @@ Basic JWT and bcrypt in place. Missing robust role checks for some advanced acti
 - Missing Admin features entirely.
 
 ## Completed Features
-- Basic User Registration/Login (Backend)
-- Basic OCR extraction for DL, Aadhaar, RC (FastAPI)
-- Socket.IO scaffolding for location tracking (Refactored for Trips)
-- Architecture refactored to support Load/Bid/Trip workflow.
+- Full User Registration & Login with JWT & RBAC (Driver, Business, Admin).
+- Mapped User registration credentials (`name`, `email`, `phone`) with `DriverProfile` / `BusinessProfile` in MongoDB.
+- Driver Profile Document Vault & Fullscreen Image Lightbox Modal for inspecting uploaded document photos.
+- Complete Load Marketplace with posting, bidding, bid acceptance, bid rejection, and load lifecycle management.
+- Real-time GPS location tracking with Socket.IO throttled at 45 seconds for MongoDB optimization.
+- Custom Delivery Confirmation modal on tracking page and synchronized status update (`ASSIGNED` -> `IN_TRANSIT` -> `DELIVERED`).
+- Full OCR document extraction & verification for DL, Aadhaar, RC, PUC, Insurance, and Permit using EasyOCR / Tesseract pipeline with dynamic rotation handling.
+- In-Database MongoDB Base64 Data URL document storage (`DocumentStore`) with Multer `memoryStorage()` (zero local uploads disk persistence) and SHA-256 de-duplication.
+- 2-Page Document Verification UI flow (Primary: DL, Aadhaar & RC; Page 2: PUC, Insurance & Permit).
+- Inline Fleet Vehicle Registration Modal in `DocumentVerification.jsx` (eliminates external routing to `/profile`).
+- Replaced all native browser `alert()` popups with global `react-toastify` notifications.
 
 ## Pending Features
-- Build Bidding functionality APIs.
-- Build out full Frontend marketplace UI.
-- Implement Missing OCR models (PUC, Insurance, Permit).
-- Dockerization.
+- Dockerization (Dockerfiles & docker-compose.yml for microservices).
+- Unit & Integration Test Suites (Phase 11).
 
 ## Current Task
-Phase 9: Frontend Dashboards & UI (Business Dashboard)
+Phase 12: Finalization & System Synchronization
 
 ## Last Completed Task
-Phase 9: Frontend Dashboards & UI (Driver Dashboard)
+Phase 3, 7, 9 & 12: Driver Profile Mapping, In-Database Document Storage, Lightbox Image Vault, and PROJECT_PROGRESS Update.
 
 ## Next Recommended Task
-Phase 9: Frontend Dashboards & UI (Business Dashboard Implementation).
+Phase 10: Dockerization (Create docker-compose.yml and Dockerfiles for Backend, Frontend, and FastAPI).
 
 ## Important Technical Decisions
 - Use `Load`, `Bid`, `Trip` as separate collections to support 1:N relations for bidding.

@@ -6,17 +6,41 @@ const tripRepository = require("../repositories/tripRepository");
 const docVerifyClient = require("./docVerifyClient");
 const fs = require("fs");
 
+const User = require("../models/User");
+
 const getProfile = async (userId) => {
-  const profile = await driverRepository.findByUser(userId);
+  const user = await User.findById(userId).select("-password");
+  let profile = await driverRepository.findByUser(userId);
   if (!profile) {
-    const err = new Error("Driver profile not found");
-    err.statusCode = 404;
-    throw err;
+    profile = await driverRepository.upsertProfile(userId, {});
   }
-  return profile;
+  return {
+    ...profile.toObject(),
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    role: user?.role || "driver"
+  };
 };
 
-const updateProfile = (userId, data) => driverRepository.upsertProfile(userId, data);
+const updateProfile = async (userId, data) => {
+  const { name, phone, ...profileData } = data;
+  if (name || phone) {
+    const userUpdate = {};
+    if (name) userUpdate.name = name.trim();
+    if (phone) userUpdate.phone = phone.trim();
+    await User.findByIdAndUpdate(userId, { $set: userUpdate });
+  }
+  const updatedProfile = await driverRepository.upsertProfile(userId, profileData);
+  const updatedUser = await User.findById(userId).select("-password");
+  return {
+    ...updatedProfile.toObject(),
+    name: updatedUser?.name || "",
+    email: updatedUser?.email || "",
+    phone: updatedUser?.phone || "",
+    role: updatedUser?.role || "driver"
+  };
+};
 
 const addTruck = (driverId, data) => truckRepository.create({ ...data, driver: driverId });
 
@@ -52,22 +76,70 @@ const deleteTruck = async (truckId, driverId) => {
   return truckRepository.deleteById(truckId);
 };
 
-const verifyLicense = async (userId, frontPath, backPath) => {
-  const result = await docVerifyClient.verifyDrivingLicenseCombined(frontPath, backPath);
-  fs.unlink(frontPath, () => {});
-  fs.unlink(backPath, () => {});
-  const verificationStatus = result?.data?.is_valid ? "verified" : "rejected";
+const crypto = require("crypto");
+const DocumentStore = require("../models/DocumentStore");
+const logger = require("../utils/logger");
+
+const saveDocumentToDb = async (userId, docType, fileObj, truckId = null) => {
+  if (!fileObj || !fileObj.buffer) return null;
+
+  // Calculate SHA-256 hash of file buffer for de-duplication
+  const fileHash = crypto.createHash("sha256").update(fileObj.buffer).digest("hex");
+
+  // Check if duplicate document already exists in DB for this user
+  let existingDoc = await DocumentStore.findOne({ user: userId, docType, fileHash });
+  if (existingDoc) {
+    logger.info(`Duplicate document detected (Hash: ${fileHash.substring(0, 10)}...). Reusing existing document ID.`);
+    return existingDoc;
+  }
+
+  // Create Base64 Data URL to store directly in MongoDB (no local uploads folder!)
+  const dataUrl = `data:${fileObj.mimetype};base64,${fileObj.buffer.toString("base64")}`;
+
+  const newDoc = await DocumentStore.create({
+    user: userId,
+    docType,
+    truck: truckId,
+    filename: fileObj.originalname,
+    contentType: fileObj.mimetype,
+    dataUrl,
+    fileHash,
+    fileSize: fileObj.size,
+  });
+
+  return newDoc;
+};
+
+const verifyLicense = async (userId, frontObj, backObj) => {
+  const frontDoc = await saveDocumentToDb(userId, "license_front", frontObj);
+  const backDoc = await saveDocumentToDb(userId, "license_back", backObj);
+
+  const result = await docVerifyClient.verifyDrivingLicenseCombined(frontObj, backObj);
+  const verificationStatus = result?.fraud_status === "clean" ? "verified" : (result?.front?.licence_number ? "verified" : "rejected");
+  
   await driverRepository.upsertProfile(userId, {
-    licenseNumber: result?.data?.license_number || undefined,
+    licenseNumber: result?.front?.licence_number || result?.data?.license_number || undefined,
+    licenseDocUrl: frontDoc?.dataUrl,
     verificationStatus,
+    licenseDetails: { front: result?.front, back: result?.back }
   });
   return result;
 };
 
-const verifyAadhaar = async (userId, frontPath, backPath) => {
-  const result = await docVerifyClient.verifyAadhaar(frontPath, backPath);
-  fs.unlink(frontPath, () => {});
-  fs.unlink(backPath, () => {});
+const verifyAadhaar = async (userId, frontObj, backObj) => {
+  const frontDoc = await saveDocumentToDb(userId, "aadhaar_front", frontObj);
+  const backDoc = await saveDocumentToDb(userId, "aadhaar_back", backObj);
+
+  const result = await docVerifyClient.verifyAadhaar(frontObj, backObj);
+  const extractedNum = result?.front?.aadhaar_number || result?.back?.aadhaar_number;
+  const aadhaarStatus = (result?.fraud_status === "clean" || extractedNum || result?.front?.name) ? "verified" : "rejected";
+  
+  await driverRepository.upsertProfile(userId, {
+    aadhaarNumber: extractedNum || undefined,
+    aadhaarDocUrl: frontDoc?.dataUrl,
+    aadhaarStatus,
+    aadhaarDetails: { front: result?.front, back: result?.back }
+  });
   return result;
 };
 
@@ -85,40 +157,82 @@ const placeBid = async (driverId, loadId, data) => {
 
 const listMyBids = (driverId) => bidRepository.findByDriver(driverId);
 
-const verifyTruckRC = async (truckId, driverId, filePath) => {
+const verifyTruckRC = async (truckId, driverId, fileObj) => {
   const truck = await truckRepository.findById(truckId);
   if (!truck || truck.driver.toString() !== driverId.toString()) {
-    fs.unlink(filePath, () => {});
     const err = new Error("Not authorized to verify this truck");
     err.statusCode = 403;
     throw err;
   }
-  const result = await docVerifyClient.verifyRC(filePath);
-  fs.unlink(filePath, () => {});
+  
+  const rcDoc = await saveDocumentToDb(driverId, "rc", fileObj, truckId);
+  const result = await docVerifyClient.verifyRC(fileObj);
 
   const rcStatus = result?.fraud_status === "clean" ? "verified" : "rejected";
   await truckRepository.updateById(truckId, {
+    rcDocUrl: rcDoc?.dataUrl,
     rcStatus,
     rcDetails: result?.rc_fields
   });
   return result;
 };
 
-const verifyTruckPUC = async (truckId, driverId, filePath) => {
+const verifyTruckPUC = async (truckId, driverId, fileObj) => {
   const truck = await truckRepository.findById(truckId);
   if (!truck || truck.driver.toString() !== driverId.toString()) {
-    fs.unlink(filePath, () => {});
     const err = new Error("Not authorized to verify this truck");
     err.statusCode = 403;
     throw err;
   }
-  const result = await docVerifyClient.verifyPUC(filePath);
-  fs.unlink(filePath, () => {});
+
+  const pucDoc = await saveDocumentToDb(driverId, "puc", fileObj, truckId);
+  const result = await docVerifyClient.verifyPUC(fileObj);
 
   const pucStatus = result?.fraud_status === "clean" ? "verified" : "rejected";
   await truckRepository.updateById(truckId, {
+    pucDocUrl: pucDoc?.dataUrl,
     pucStatus,
     pucDetails: result?.puc_fields
+  });
+  return result;
+};
+
+const verifyTruckInsurance = async (truckId, driverId, fileObj) => {
+  const truck = await truckRepository.findById(truckId);
+  if (!truck || truck.driver.toString() !== driverId.toString()) {
+    const err = new Error("Not authorized to verify this truck");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const insuranceDoc = await saveDocumentToDb(driverId, "insurance", fileObj, truckId);
+  const result = await docVerifyClient.verifyInsurance(fileObj);
+
+  const insuranceStatus = result?.fraud_status === "clean" ? "verified" : "rejected";
+  await truckRepository.updateById(truckId, {
+    insuranceDocUrl: insuranceDoc?.dataUrl,
+    insuranceStatus,
+    insuranceDetails: result?.insurance_fields
+  });
+  return result;
+};
+
+const verifyTruckPermit = async (truckId, driverId, fileObj) => {
+  const truck = await truckRepository.findById(truckId);
+  if (!truck || truck.driver.toString() !== driverId.toString()) {
+    const err = new Error("Not authorized to verify this truck");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const permitDoc = await saveDocumentToDb(driverId, "permit", fileObj, truckId);
+  const result = await docVerifyClient.verifyPermit(fileObj);
+
+  const permitStatus = result?.fraud_status === "clean" ? "verified" : "rejected";
+  await truckRepository.updateById(truckId, {
+    permitDocUrl: permitDoc?.dataUrl,
+    permitStatus,
+    permitDetails: result?.permit_fields
   });
   return result;
 };
@@ -149,6 +263,8 @@ module.exports = {
   listMyBids,
   verifyTruckRC,
   verifyTruckPUC,
+  verifyTruckInsurance,
+  verifyTruckPermit,
   listMyTrips,
   getTripDetails,
 };

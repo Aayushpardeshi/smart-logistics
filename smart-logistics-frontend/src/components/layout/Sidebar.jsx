@@ -23,6 +23,7 @@ export default function Sidebar() {
       { to: "/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
       { to: "/loads", label: t("nav.loads") || "Marketplace", icon: Package },
       { to: "/bids", label: t("nav.bids") || "My Bids", icon: List },
+      { to: "/documents", label: "Verify Documents", icon: FileText },
       { to: "/tracking", label: "Live Tracking", icon: MapPin },
       { to: "/profile", label: t("nav.profile"), icon: User },
     ],

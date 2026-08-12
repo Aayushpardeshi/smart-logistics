@@ -1,7 +1,38 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import { Loader2, List, CheckCircle, XCircle, ArrowRight, IndianRupee } from "lucide-react";
+import { Loader2, List, CheckCircle, XCircle, ArrowRight, IndianRupee, MessageSquare, Phone } from "lucide-react";
+
+function DriverMessageCell({ message }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!message) {
+    return <span className="text-slate-400 text-xs italic">No message</span>;
+  }
+
+  const isLong = message.length > 50;
+  const displayMessage = expanded || !isLong 
+    ? message 
+    : message.slice(0, 50) + "...";
+
+  return (
+    <div className="bg-slate-100/80 border border-slate-200/60 rounded-xl p-2.5 text-xs text-slate-700 flex items-start space-x-2 min-w-0 transition-all">
+      <MessageSquare size={14} className="text-secondary shrink-0 mt-0.5" />
+      <div className="min-w-0 flex-1">
+        <span className="italic break-words [word-break:break-word] min-w-0">"{displayMessage}"</span>
+        {isLong && (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="ml-1.5 text-secondary hover:text-blue-700 font-bold hover:underline inline-block text-[11px] not-italic cursor-pointer"
+          >
+            {expanded ? "See Less" : "See More"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Bids() {
   const { user } = useAuth();
@@ -48,7 +79,7 @@ export default function Bids() {
       setBids(res.data.data || []);
       setSelectedLoad(loadId);
     } catch (err) {
-      alert("Failed to fetch bids for this load");
+      toast.error("Failed to fetch bids for this load");
     } finally {
       setLoading(false);
     }
@@ -58,11 +89,11 @@ export default function Bids() {
     try {
       setLoading(true);
       await api.put(`/business/bids/${bidId}/${action}`);
-      alert(`Bid ${action}ed successfully!`);
+      toast.success(`Bid ${action}ed successfully!`);
       // Refresh bids for current load
       fetchBidsForLoad(selectedLoad);
     } catch (err) {
-      alert(err.response?.data?.message || `Failed to ${action} bid`);
+      toast.error(err.response?.data?.message || `Failed to ${action} bid`);
       setLoading(false);
     }
   };
@@ -142,6 +173,7 @@ export default function Bids() {
                     {user.role === 'driver' ? <th className="px-6 py-4">Destination</th> : <th className="px-6 py-4">Driver</th>}
                     <th className="px-6 py-4">Bid Amount</th>
                     <th className="px-6 py-4">Est. Delivery</th>
+                    <th className="px-6 py-4">Driver Message</th>
                     <th className="px-6 py-4">Status</th>
                     {user.role === 'business' && <th className="px-6 py-4 text-right">Actions</th>}
                   </tr>
@@ -150,15 +182,27 @@ export default function Bids() {
                   {bids.map((bid) => (
                     <tr key={bid._id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4 truncate max-w-[200px]">
-                        {user.role === 'driver' 
-                          ? bid.loadId?.destination?.address || 'Unknown' 
-                          : bid.driverId?.name || 'Unknown Driver'}
+                        {user.role === 'driver' ? (
+                          bid.loadId?.destination?.address || 'Unknown'
+                        ) : (
+                          <div>
+                            <div className="font-bold text-primary">{bid.driverId?.name || 'Unknown Driver'}</div>
+                            {bid.driverId?.phone && (
+                              <div className="text-xs text-slate-400 flex items-center mt-0.5 font-normal">
+                                <Phone size={12} className="mr-1" /> {bid.driverId?.phone}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 font-bold text-primary flex items-center">
                         <IndianRupee size={14} className="mr-1 text-slate-400"/> {bid.amount.toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-slate-500">
                         {new Date(bid.estimatedDelivery).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 max-w-[280px]">
+                        <DriverMessageCell message={bid.message} />
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStatusColor(bid.status)}`}>
