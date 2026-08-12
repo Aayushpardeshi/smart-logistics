@@ -32,6 +32,7 @@ app.get("/health", (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/driver", driverRoutes);
 app.use("/api/v1/business", businessRoutes);
+app.use("/api/v1/admin", require("./routes/adminRoutes"));
 app.use(notFound);
 app.use(errorHandler);
 

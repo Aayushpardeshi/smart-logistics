@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   ArrowRight,
   ArrowLeft,
-  PlusCircle
+  PlusCircle,
+  Trash2
 } from "lucide-react";
 
 export default function DocumentVerification() {
@@ -91,6 +92,18 @@ export default function DocumentVerification() {
       showModal("Registration Failed", err.response?.data?.message || err.response?.data?.error || "Failed to register vehicle", "error");
     } finally {
       setAddingTruck(false);
+    }
+  };
+
+  const handleDeleteTruck = async () => {
+    if (!selectedTruckId) return;
+    if (!window.confirm("Are you sure you want to delete this vehicle?")) return;
+    try {
+      await api.delete(`/driver/trucks/${selectedTruckId}`);
+      showModal("Vehicle Deleted", "Vehicle has been removed from your fleet.", "success");
+      fetchData();
+    } catch (err) {
+      showModal("Deletion Failed", err.response?.data?.message || "Failed to delete vehicle", "error");
     }
   };
 
@@ -210,6 +223,12 @@ export default function DocumentVerification() {
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
             <CheckCircle size={14} className="mr-1 text-emerald-600" /> Verified
+          </span>
+        );
+      case "uploaded":
+        return (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">
+            <CheckCircle size={14} className="mr-1 text-blue-600" /> Uploaded
           </span>
         );
       case "rejected":
@@ -538,6 +557,16 @@ export default function DocumentVerification() {
                     >
                       <PlusCircle size={15} className="mr-1" /> Add Truck
                     </button>
+                    {trucks.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteTruck}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 font-bold p-2.5 rounded-xl text-xs flex items-center shrink-0 transition-colors cursor-pointer"
+                        title="Delete this vehicle"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -709,7 +738,7 @@ export default function DocumentVerification() {
                   disabled={verifyingDoc === "puc"}
                   className="w-full bg-secondary hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-all shadow-sm flex justify-center items-center disabled:opacity-50 cursor-pointer text-sm"
                 >
-                  {verifyingDoc === "puc" ? <Loader2 className="animate-spin mr-2" size={16} /> : <FileCheck size={16} className="mr-2" />} Verify PUC
+                  {verifyingDoc === "puc" ? <Loader2 className="animate-spin mr-2" size={16} /> : <Upload size={16} className="mr-2" />} Upload PUC
                 </button>
               </div>
 
@@ -746,7 +775,7 @@ export default function DocumentVerification() {
                   disabled={verifyingDoc === "insurance"}
                   className="w-full bg-secondary hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-all shadow-sm flex justify-center items-center disabled:opacity-50 cursor-pointer text-sm"
                 >
-                  {verifyingDoc === "insurance" ? <Loader2 className="animate-spin mr-2" size={16} /> : <FileCheck size={16} className="mr-2" />} Verify Insurance
+                  {verifyingDoc === "insurance" ? <Loader2 className="animate-spin mr-2" size={16} /> : <Upload size={16} className="mr-2" />} Upload Insurance
                 </button>
               </div>
 
@@ -783,7 +812,7 @@ export default function DocumentVerification() {
                   disabled={verifyingDoc === "permit"}
                   className="w-full bg-secondary hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-all shadow-sm flex justify-center items-center disabled:opacity-50 cursor-pointer text-sm"
                 >
-                  {verifyingDoc === "permit" ? <Loader2 className="animate-spin mr-2" size={16} /> : <FileCheck size={16} className="mr-2" />} Verify Permit
+                  {verifyingDoc === "permit" ? <Loader2 className="animate-spin mr-2" size={16} /> : <Upload size={16} className="mr-2" />} Upload Permit
                 </button>
               </div>
 

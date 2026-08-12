@@ -97,13 +97,13 @@ Basic JWT and bcrypt in place. Missing robust role checks for some advanced acti
 - Unit & Integration Test Suites (Phase 11).
 
 ## Current Task
-Phase 12: Finalization & System Synchronization
+Phase 6: Admin Dashboard & System Finalization
 
 ## Last Completed Task
-Phase 3, 7, 9 & 12: Driver Profile Mapping, In-Database Document Storage, Lightbox Image Vault, and PROJECT_PROGRESS Update.
+Updated Driver Document Verification (Added Delete Truck, simplified complex document uploads to skip OCR).
 
 ## Next Recommended Task
-Phase 10: Dockerization (Create docker-compose.yml and Dockerfiles for Backend, Frontend, and FastAPI).
+Admin Dashboard Implementation.
 
 ## Important Technical Decisions
 - Use `Load`, `Bid`, `Trip` as separate collections to support 1:N relations for bidding.

@@ -186,15 +186,15 @@ const verifyTruckPUC = async (truckId, driverId, fileObj) => {
   }
 
   const pucDoc = await saveDocumentToDb(driverId, "puc", fileObj, truckId);
-  const result = await docVerifyClient.verifyPUC(fileObj);
 
-  const pucStatus = result?.fraud_status === "clean" ? "verified" : "rejected";
+  // Bypass OCR for complex document
+  const pucStatus = "uploaded";
   await truckRepository.updateById(truckId, {
     pucDocUrl: pucDoc?.dataUrl,
     pucStatus,
-    pucDetails: result?.puc_fields
+    pucDetails: { note: "Manual verification pending" }
   });
-  return result;
+  return { success: true, message: "PUC document uploaded successfully" };
 };
 
 const verifyTruckInsurance = async (truckId, driverId, fileObj) => {
@@ -206,15 +206,15 @@ const verifyTruckInsurance = async (truckId, driverId, fileObj) => {
   }
 
   const insuranceDoc = await saveDocumentToDb(driverId, "insurance", fileObj, truckId);
-  const result = await docVerifyClient.verifyInsurance(fileObj);
 
-  const insuranceStatus = result?.fraud_status === "clean" ? "verified" : "rejected";
+  // Bypass OCR for complex document
+  const insuranceStatus = "uploaded";
   await truckRepository.updateById(truckId, {
     insuranceDocUrl: insuranceDoc?.dataUrl,
     insuranceStatus,
-    insuranceDetails: result?.insurance_fields
+    insuranceDetails: { note: "Manual verification pending" }
   });
-  return result;
+  return { success: true, message: "Insurance document uploaded successfully" };
 };
 
 const verifyTruckPermit = async (truckId, driverId, fileObj) => {
@@ -226,15 +226,15 @@ const verifyTruckPermit = async (truckId, driverId, fileObj) => {
   }
 
   const permitDoc = await saveDocumentToDb(driverId, "permit", fileObj, truckId);
-  const result = await docVerifyClient.verifyPermit(fileObj);
 
-  const permitStatus = result?.fraud_status === "clean" ? "verified" : "rejected";
+  // Bypass OCR for complex document
+  const permitStatus = "uploaded";
   await truckRepository.updateById(truckId, {
     permitDocUrl: permitDoc?.dataUrl,
     permitStatus,
-    permitDetails: result?.permit_fields
+    permitDetails: { note: "Manual verification pending" }
   });
-  return result;
+  return { success: true, message: "Permit document uploaded successfully" };
 };
 
 const listMyTrips = (driverId) => tripRepository.findByDriver(driverId);
