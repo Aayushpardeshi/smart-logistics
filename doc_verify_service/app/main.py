@@ -1,19 +1,26 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from app.config import get_settings
-from app.api.v1.documents import router as documents_router
 from loguru import logger
+
+from app.api.v1.documents import router as documents_router
+from app.config import get_settings
 from app.core.error_handlers import register_error_handlers
 
 settings = get_settings()
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(f"Starting {settings.app_name} in {settings.app_env} mode")
+    logger.info(
+        f"Starting {settings.app_name} in {settings.app_env} mode"
+    )
+
     yield
-    logger.info(f"Shutting down {settings.app_name}")
+
+    logger.info(
+        f"Shutting down {settings.app_name}"
+    )
 
 
 app = FastAPI(
@@ -21,6 +28,7 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,7 +38,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 register_error_handlers(app)
+
 
 app.include_router(
     documents_router,

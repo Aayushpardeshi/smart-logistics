@@ -1,6 +1,7 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
 from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -8,7 +9,7 @@ class Settings(BaseSettings):
     app_name: str = Field(default="doc_verify_service")
     app_env: str = Field(default="development")
     app_port: int = Field(default=8000)
-    debug: bool = Field(default=True)
+    debug: bool = Field(default=False)
 
     # Logging
     log_level: str = Field(default="INFO")
@@ -19,7 +20,7 @@ class Settings(BaseSettings):
 
     # OCR
     tesseract_path: str = Field(
-        default="C:/Program Files/Tesseract-OCR/tesseract.exe"
+        default="/usr/bin/tesseract"
     )
 
     # File Upload
@@ -27,13 +28,21 @@ class Settings(BaseSettings):
     allowed_extensions: str = Field(default="pdf,jpg,jpeg,png")
 
     # CORS
-    cors_origins: str = Field(default="http://localhost:3000,http://localhost:8080")
+    cors_origins: str = Field(default="http://localhost:5173")
 
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        case_sensitive=False,
+    )
 
     @property
     def cors_origins_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        return [
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
 
 
 @lru_cache()
