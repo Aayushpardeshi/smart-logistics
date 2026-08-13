@@ -24,8 +24,3 @@ pillow>=10.4.0
 
 # OCR
 pytesseract>=0.3.13
-easyocr>=1.7.1
-
-# AI
-torch
-transformers
