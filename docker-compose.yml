@@ -1,0 +1,19 @@
+services:
+
+  backend:
+    build: ./smart-logistics-backend
+    container_name: smart-logistics-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./smart-logistics-backend/.env
+    environment:
+      - DOC_VERIFY_SERVICE_URL=http://doc_verify_service:8000
+    depends_on:
+      - doc_verify_service
+
+  doc_verify_service:
+    build: ./doc_verify_service
+    container_name: smart-logistics-ocr
+    ports:
+      - "8000:8000"
