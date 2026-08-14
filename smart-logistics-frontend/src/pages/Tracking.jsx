@@ -2,29 +2,39 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { connectSocket, disconnectSocket } from "../services/socket";
 import { useAuth } from "../context/AuthContext";
+import { useTracking } from "../context/TrackingContext";
 import { MapPin, Navigation, CheckCircle, AlertTriangle, Play, Loader2 } from "lucide-react";
 
 export default function Tracking() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const {
+    tripId: contextTripId,
+    status,
+    connected,
+    trackingActive,
+    currentLocation,
+    startTracking,
+    confirmDelivery
+  } = useTracking();
   
-  // Extract tripId from URL if passed via state, or let user input it
-  const [tripId, setTripId] = useState(location.state?.tripId || "");
-  const [status, setStatus] = useState("Not connected");
-  const [connected, setConnected] = useState(false);
-  const [trackingActive, setTrackingActive] = useState(false);
+  const [inputTripId, setInputTripId] = useState(location.state?.tripId || contextTripId || "");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const mapRef = useRef(null);
   const markerRef = useRef(null);
-  const socketRef = useRef(null);
-  const watchIdRef = useRef(null);
+
+  // Auto-start tracking if we navigated here with a tripId
+  useEffect(() => {
+    if (location.state?.tripId && location.state?.tripId !== contextTripId) {
+      startTracking(location.state.tripId);
+    }
+  }, [location.state?.tripId, contextTripId, startTracking]);
 
   useEffect(() => {
-    mapRef.current = L.map("map", { zoomControl: false }).setView([20.5937, 78.9629], 5); // India center
+    mapRef.current = L.map("map", { zoomControl: false }).setView([20.5937, 78.9629], 5);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       attribution: "&copy; OpenStreetMap &copy; CARTO",
     }).addTo(mapRef.current);
@@ -33,106 +43,34 @@ export default function Tracking() {
 
     return () => {
       mapRef.current?.remove();
-      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
-      disconnectSocket();
     };
   }, []);
 
-  const handleConnectAndJoin = () => {
-    if (!tripId) {
-      setStatus("Please enter a valid Trip ID");
-      return;
-    }
-
-    setStatus("Connecting...");
-    const token = localStorage.getItem("token");
-    const socket = connectSocket(token);
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      setConnected(true);
-      if (user.role === 'business') {
-        socket.emit("business:join_trip_room", { tripId });
-      }
-    });
-
-    socket.on("connect_error", (err) => setStatus("Connection Error: " + err.message));
-    
-    socket.on("error:tracking", (e) => setStatus("Error: " + e.message));
-
-    // Driver specific
-    socket.on("trip:started", () => {
-      setStatus("Trip started - Sharing location live");
-      setTrackingActive(true);
-    });
-
-    // Business specific
-    socket.on("room:joined", (data) => {
-      setStatus("Tracking active - Waiting for location updates");
-      setTrackingActive(true);
-      if (data.currentLocation?.lat) {
-        updateMarker(data.currentLocation.lat, data.currentLocation.lng);
-      }
-    });
-
-    // Shared
-    socket.on("location:update", (data) => {
-      updateMarker(data.lat, data.lng);
-      setStatus(`Live Location: ${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}`);
-    });
-
-    socket.on("trip:ended", (data) => {
-      setStatus("Delivered - Tracking ended");
-      setTrackingActive(false);
-      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
-    });
-  };
-
-  const updateMarker = (lat, lng) => {
-    if (!markerRef.current) {
-      const customIcon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div style="background-color: #2563EB; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
-      });
-      markerRef.current = L.marker([lat, lng], { icon: customIcon }).addTo(mapRef.current);
-    } else {
-      markerRef.current.setLatLng([lat, lng]);
-    }
-    mapRef.current.flyTo([lat, lng], 14, { animate: true, duration: 1 });
-  };
-
-  const handleStartTrip = () => {
-    if (!tripId || !connected) return;
-    socketRef.current.emit("driver:start_trip", { tripId });
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        socketRef.current.emit("driver:location_update", {
-          tripId,
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          speed: pos.coords.speed,
-          heading: pos.coords.heading,
-          accuracy: pos.coords.accuracy,
+  useEffect(() => {
+    if (currentLocation?.lat && mapRef.current) {
+      if (!markerRef.current) {
+        const customIcon = L.divIcon({
+          className: 'custom-div-icon',
+          html: `<div style="background-color: #2563EB; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
         });
-      },
-      (err) => setStatus("GPS Error: Please enable location permissions"),
-      { enableHighAccuracy: true, maximumAge: 10000 }
-    );
-  };
+        markerRef.current = L.marker([currentLocation.lat, currentLocation.lng], { icon: customIcon }).addTo(mapRef.current);
+      } else {
+        markerRef.current.setLatLng([currentLocation.lat, currentLocation.lng]);
+      }
+      mapRef.current.flyTo([currentLocation.lat, currentLocation.lng], 14, { animate: true, duration: 1 });
+    }
+  }, [currentLocation]);
 
-  const handleConfirmDelivery = () => {
-    if (!tripId || !connected) return;
-    setShowConfirmModal(true);
+  const handleConnectAndJoin = () => {
+    if (!inputTripId) return;
+    startTracking(inputTripId);
   };
 
   const executeDeliveryConfirmation = () => {
     setShowConfirmModal(false);
-    if (socketRef.current) {
-      socketRef.current.emit("business:confirm_delivery", { tripId });
-    }
+    confirmDelivery();
   };
 
   return (
@@ -150,8 +88,8 @@ export default function Tracking() {
           <input
             type="text"
             placeholder="Enter Trip ID..."
-            value={tripId}
-            onChange={(e) => setTripId(e.target.value)}
+            value={inputTripId}
+            onChange={(e) => setInputTripId(e.target.value)}
             disabled={connected}
             className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary bg-slate-50 disabled:opacity-60"
           />
@@ -161,25 +99,22 @@ export default function Tracking() {
           {!connected ? (
             <button
               onClick={handleConnectAndJoin}
-              disabled={!tripId}
+              disabled={!inputTripId}
               className="w-full bg-primary hover:bg-slate-800 text-white px-4 py-3 rounded-xl font-bold transition-colors disabled:opacity-50 cursor-pointer"
             >
               Connect to Tracking
             </button>
           ) : (
             <>
-              {user?.role === "driver" && !trackingActive && (
-                <button
-                  onClick={handleStartTrip}
-                  className="w-full bg-accent hover:bg-cyan-600 text-white px-4 py-3 rounded-xl font-bold transition-colors shadow-[0_0_15px_rgba(6,182,212,0.3)] flex justify-center items-center cursor-pointer"
-                >
-                  <Play size={18} className="mr-2 fill-current" /> Start Trip & Share Location
-                </button>
+              {user?.role === "driver" && trackingActive && (
+                <div className="w-full bg-accent/10 text-accent px-4 py-3 rounded-xl font-bold flex justify-center items-center">
+                  <Play size={18} className="mr-2 fill-current" /> Tracking Active
+                </div>
               )}
 
               {user?.role === "business" && trackingActive && (
                 <button
-                  onClick={handleConfirmDelivery}
+                  onClick={() => setShowConfirmModal(true)}
                   className="w-full bg-success hover:bg-green-700 text-white px-4 py-3 rounded-xl font-bold transition-colors flex justify-center items-center mt-auto shadow-[0_0_15px_rgba(22,163,74,0.3)] cursor-pointer"
                 >
                   <CheckCircle size={18} className="mr-2" /> Confirm Delivery
