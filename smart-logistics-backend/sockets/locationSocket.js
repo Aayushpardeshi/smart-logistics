@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 
 // In-memory throttle tracker: driverId -> last emit timestamp (ms)
 const lastEmitTime = new Map();
-const THROTTLE_MS = 45 * 1000; // 45 sec
+const THROTTLE_MS = 5 * 1000; // 5 sec
 
 function registerLocationHandlers(io, socket) {
   const { id: userId, role } = socket.user;
