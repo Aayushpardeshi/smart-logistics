@@ -33,7 +33,6 @@ export function TrackingProvider({ children }) {
         socket.emit("business:join_trip_room", { tripId: newTripId });
       } else if (user?.role === "driver") {
         socket.emit("driver:start_trip", { tripId: newTripId });
-        startGeolocation(newTripId);
       }
     });
 
@@ -44,6 +43,7 @@ export function TrackingProvider({ children }) {
     socket.on("trip:started", () => {
       setStatus("Trip started - Sharing location live");
       setTrackingActive(true);
+      startGeolocation(newTripId);
     });
 
     // Business specific

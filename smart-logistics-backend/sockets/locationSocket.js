@@ -66,13 +66,7 @@ function registerLocationHandlers(io, socket) {
         return socket.emit('error:tracking', { message: 'Not an active trip room for this trip' });
       }
 
-      // Throttle check (45s per driver)
-      const now = Date.now();
-      const last = lastEmitTime.get(userId) || 0;
-      if (now - last < THROTTLE_MS) {
-        return; // silently drop, no error needed
-      }
-      lastEmitTime.set(userId, now);
+      // Throttle removed for instant real-time synchronization
 
       const trip = await Trip.findById(tripId);
       if (!trip || trip.status !== 'IN_TRANSIT') {
