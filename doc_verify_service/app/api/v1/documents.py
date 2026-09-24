@@ -19,7 +19,6 @@ from app.services.verification_service_permit import verify_permit_document
 
 router = APIRouter()
 
-
 def validate_file(
     file: UploadFile,
     file_bytes: bytes,
@@ -40,7 +39,6 @@ def validate_file(
             detail=f"File too large. "
                    f"Max: {max_file_size // (1024 * 1024)}MB",
         )
-
 
 @router.post("/verify", response_model=VerificationResponse)
 async def verify_document_endpoint(

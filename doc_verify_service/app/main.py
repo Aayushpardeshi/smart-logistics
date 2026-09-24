@@ -1,9 +1,7 @@
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
-
 from app.api.v1.documents import router as documents_router
 from app.config import get_settings
 from app.core.error_handlers import register_error_handlers
