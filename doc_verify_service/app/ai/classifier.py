@@ -58,9 +58,13 @@ def classify_document(text: str) -> tuple[DocumentType, float]:
 
     text_lower = text.lower()
     scores: dict[DocumentType, int] = {}
-
+    # For every document type, count how many of its keywords appear in the OCR'd text 
+    # Only records a score if at least one keyword hi
     for doc_type, keywords in DOCUMENT_KEYWORDS.items():
-        matched = sum(1 for kw in keywords if kw in text_lower)
+        # means for every word in dictionary above check for every doc type how many of its word are there in the text 
+        # so accoding to this for every doctype whose words are encountered more 
+        # accoding to it scores are assigned 
+        matched = sum(1 for kw in keywords if kw in text_lower) # similar to SQL 
         if matched > 0:
             scores[doc_type] = matched
             logger.info(f"{doc_type}: {matched} keyword matches")
@@ -70,8 +74,20 @@ def classify_document(text: str) -> tuple[DocumentType, float]:
         return DocumentType.UNKNOWN, 0.0
 
     best_type = max(scores, key=lambda k: scores[k])
+    # choose the best scored doc type
     total_keywords = len(DOCUMENT_KEYWORDS[best_type])
+    # so if Aadhaar has 13 keywords and 6 matched, confidence ≈ 0.46. min(..., 1.0) is just a safety cap.
     confidence = round(min(scores[best_type] / total_keywords, 1.0), 4)
+    # calculate the confidence score 
 
     logger.info(f"Classified as: {best_type} | confidence: {confidence}")
     return best_type, confidence
+
+    """
+        Why not ML?" → No labeled training data for these documents, keyword matching is 100% 
+        accurate for known formats and requires zero training/maintenance overhead, plus instant 
+        inference (no model latency).
+    "Limitation?" → If OCR text is poor quality (noisy scan) or a 
+    document type isn't in the dict, it's misclassified or falls to UNKNOWN.
+    Also two document types could tie on keyword count in edge cases — code just picks the first max() hit, no tie-breaking logic
+    """

@@ -1,6 +1,4 @@
 from loguru import logger
-
-
 def get_classifier_model():
     """
     Classifier is now keyword-based.
@@ -9,7 +7,6 @@ def get_classifier_model():
     """
     logger.info("Using keyword-based classifier — no model loading required")
     return None
-
 
 def get_ocr_engine():
     """

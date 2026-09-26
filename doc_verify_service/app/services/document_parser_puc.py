@@ -4,7 +4,7 @@ from app.ai.ocr_pipeline import extract_text
 from app.schemas.document import PUCFields
 
 def parse_puc_document(file_bytes: bytes, filename: str) -> tuple[str, PUCFields]:
-    raw_text = extract_text(file_bytes, filename)
+    raw_text = extract_text(file_bytes, filename) # this function is in the ocr pipeline file return the extracted text 
     if not raw_text:
         logger.warning("No text extracted from PUC document")
         return "", PUCFields()
